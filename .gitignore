@@ -1,0 +1,135 @@
+## Ignore Visual Studio temporary files, build results, and
+## user-specific settings.
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# User-specific files (MonoDevelop/SharedDevelop)
+*.userprefs
+
+# Mono auto-generated files
+mono_crash.*
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Re]leases/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio 2015/2017/2019/2022 cache directory
+.vs/
+# Uncomment if you have tasks that create the project's static files in wwwroot
+# wwwroot/lib/
+
+# Auto-saved files (Visual Studio)
+*~
+*.dbmdl
+*.jfm
+
+# Resharper is a template
+_ReSharper*/
+*.[Re]Sharper
+*.DotSettings.user
+
+# JustCode
+.JustCode
+
+# TeamCity
+_TeamCity*
+
+# ClickOnce directory
+publish/
+
+# Publish Web Output
+*.[Pp]ublish.xml
+*.azurePubxml
+# Note: The following line is to prevent subfolder running from clean build
+# *.pubxml
+*.publishproj
+
+# Microsoft Fakes
+FakesAssemblies/
+
+# GhostDoc
+*GhostDoc.xml
+
+# Node.js / Bower / Yeoman
+node_modules/
+bower_components/
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Visual Studio Product lifetime lifetime files
+# Developer Activity Templates
+*.db
+*.db-shm
+*.db-wal
+
+# Visual Studio cache files
+# Readme about Visual Studio cache files: https://docs.microsoft.com/en-us/visualstudio/ide/reference/net-framework-decisions?view=vs-2022#visual-studio-caching
+*.vshost.exe
+*.vshost.exe.manifest
+*.manifest
+*.gcno
+
+# Rider
+.idea/
+*.sln.iml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might contain sensitive info
+# *.user
+# *.suo
+# *.json
+# !appsettings.json
+# !appsettings.Development.json
+# !appsettings.http
+# !launchSettings.json
+# !*.csproj
+# !*.sln
+# !*.config
+# !*.json.template
+# !*.API.http
+
+# NuGet Packages
+*.nupkg
+# The packages folder can be ignored because of Package Restore
+**/[Pp]ackages/*
+# except build/, which is used as an MSBuild target.
+!**/[Pp]ackages/build/
+# Uncomment if necessary:
+# restorePackages.config
+
+# AppSettings secrets / environment config (usually ignored)
+# appsettings.Production.json
+# appsettings.local.json
+# *.local.json

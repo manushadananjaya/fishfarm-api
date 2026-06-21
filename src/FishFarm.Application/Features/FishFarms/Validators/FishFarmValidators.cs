@@ -1,0 +1,56 @@
+using FishFarm.Application.Features.FishFarms.Commands;
+using FluentValidation;
+
+namespace FishFarm.Application.Features.FishFarms.Validators;
+
+public sealed class CreateFishFarmCommandValidator : AbstractValidator<CreateFishFarmCommand>
+{
+    private static readonly string[] AllowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+    private const long MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+
+    public CreateFishFarmCommandValidator()
+    {
+        RuleFor(x => x.Request.Name)
+            .NotEmpty().WithMessage("Name is required.")
+            .MaximumLength(200).WithMessage("Name must not exceed 200 characters.");
+
+        RuleFor(x => x.Request.GpsLatitude)
+            .InclusiveBetween(-90m, 90m).WithMessage("Latitude must be between -90 and 90.");
+
+        RuleFor(x => x.Request.GpsLongitude)
+            .InclusiveBetween(-180m, 180m).WithMessage("Longitude must be between -180 and 180.");
+
+        RuleFor(x => x.Request.NumberOfCages)
+            .GreaterThan(0).WithMessage("NumberOfCages must be greater than 0.");
+
+        When(x => x.Request.Picture is not null, () =>
+        {
+            RuleFor(x => x.Request.Picture!.Length)
+                .LessThanOrEqualTo(MaxFileSizeBytes)
+                .WithMessage("Picture must not exceed 5 MB.");
+
+            RuleFor(x => x.Request.Picture!.ContentType)
+                .Must(ct => AllowedImageTypes.Contains(ct))
+                .WithMessage("Picture must be a JPEG, PNG, or WebP image.");
+        });
+    }
+}
+
+public sealed class UpdateFishFarmCommandValidator : AbstractValidator<UpdateFishFarmCommand>
+{
+    public UpdateFishFarmCommandValidator()
+    {
+        RuleFor(x => x.Request.Name)
+            .NotEmpty().WithMessage("Name is required.")
+            .MaximumLength(200).WithMessage("Name must not exceed 200 characters.");
+
+        RuleFor(x => x.Request.GpsLatitude)
+            .InclusiveBetween(-90m, 90m).WithMessage("Latitude must be between -90 and 90.");
+
+        RuleFor(x => x.Request.GpsLongitude)
+            .InclusiveBetween(-180m, 180m).WithMessage("Longitude must be between -180 and 180.");
+
+        RuleFor(x => x.Request.NumberOfCages)
+            .GreaterThan(0).WithMessage("NumberOfCages must be greater than 0.");
+    }
+}
