@@ -1,30 +1,41 @@
 using FishFarm.Application.Common.Exceptions;
+using FishFarm.Application.Common.Models;
 using FishFarm.Application.Features.Workers.DTOs;
 using FishFarm.Domain.Interfaces;
 using MediatR;
 
 namespace FishFarm.Application.Features.Workers.Queries;
 
-public sealed record GetWorkersByFarmQuery(Guid FishFarmId) : IRequest<IReadOnlyList<WorkerDto>>;
+public sealed record GetWorkersByFarmQuery(
+    Guid FishFarmId,
+    int PageNumber = 1,
+    int PageSize   = 20)
+    : IRequest<PaginatedResult<WorkerDto>>;
 
 public sealed class GetWorkersByFarmQueryHandler
-    : IRequestHandler<GetWorkersByFarmQuery, IReadOnlyList<WorkerDto>>
+    : IRequestHandler<GetWorkersByFarmQuery, PaginatedResult<WorkerDto>>
 {
     private readonly IUnitOfWork _uow;
 
     public GetWorkersByFarmQueryHandler(IUnitOfWork uow) => _uow = uow;
 
-    public async Task<IReadOnlyList<WorkerDto>> Handle(
+    public async Task<PaginatedResult<WorkerDto>> Handle(
         GetWorkersByFarmQuery request,
         CancellationToken cancellationToken)
     {
         // Verify farm exists and is not soft-deleted
-        var farm = await _uow.FishFarms.GetByIdAsync(request.FishFarmId, cancellationToken)
+        _ = await _uow.FishFarms.GetByIdAsync(request.FishFarmId, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), request.FishFarmId);
 
-        var workers = await _uow.Workers.GetByFishFarmAsync(request.FishFarmId, cancellationToken);
+        var (workers, total) = await _uow.Workers.GetPagedByFishFarmAsync(
+            request.FishFarmId,
+            request.PageNumber,
+            request.PageSize,
+            cancellationToken);
 
-        return workers.Select(w => new WorkerDto
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var dtos = workers.Select(w => new WorkerDto
         {
             Id             = w.Id,
             FishFarmId     = w.FishFarmId,
@@ -33,9 +44,12 @@ public sealed class GetWorkersByFarmQueryHandler
             Email          = w.Email,
             Position       = w.Position.ToString(),
             CertifiedUntil = w.CertifiedUntil,
+            IsExpired      = w.CertifiedUntil < today,
             PictureUrl     = w.PictureUrl,
             CreatedAt      = w.CreatedAt,
             UpdatedAt      = w.UpdatedAt
         }).ToList();
+
+        return PaginatedResult<WorkerDto>.Create(dtos, total, request.PageNumber, request.PageSize);
     }
 }

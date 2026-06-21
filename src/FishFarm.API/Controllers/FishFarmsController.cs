@@ -17,6 +17,12 @@ public sealed class FishFarmsController : ControllerBase
     public FishFarmsController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>Get a paginated list of all fish farms.</summary>
+    /// <remarks>
+    /// Design decision (#7): The list returns FishFarmSummaryDto (includes WorkerCount).
+    /// Full workers are available via GET /api/fishfarms/{id}. A bulk ?includeWorkers=true
+    /// projection is deferred until the frontend confirms it needs all farms+workers in one
+    /// call — premature optimisation vs. added complexity.
+    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResult<FishFarmSummaryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
@@ -24,7 +30,9 @@ public sealed class FishFarmsController : ControllerBase
         [FromQuery] int pageSize   = 10,
         CancellationToken cancellationToken = default)
     {
-        if (pageSize > 50) pageSize = 50;  
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize   < 1) pageSize   = 1;
+        if (pageSize   > 50) pageSize  = 50;
         var result = await _mediator.Send(new GetFishFarmsQuery(pageNumber, pageSize), cancellationToken);
         return Ok(result);
     }

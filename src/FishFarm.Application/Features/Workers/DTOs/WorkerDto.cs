@@ -12,6 +12,7 @@ public sealed class WorkerDto
     public string Position { get; init; } = default!;
 
     public DateOnly CertifiedUntil { get; init; }
+    public bool IsExpired { get; init; }
     public string? PictureUrl { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }

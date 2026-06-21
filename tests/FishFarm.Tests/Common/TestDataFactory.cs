@@ -51,6 +51,7 @@ public static class TestDataFactory
         int age = 30,
         string email = "john.fisher@example.com",
         WorkerPosition position = WorkerPosition.Worker,
+        DateOnly? certifiedUntil = null,
         string? pictureUrl = null,
         string? picturePublicId = null) => new()
     {
@@ -60,7 +61,7 @@ public static class TestDataFactory
         Age              = age,
         Email            = email,
         Position         = position,
-        CertifiedUntil   = new DateOnly(2026, 12, 31),
+        CertifiedUntil   = certifiedUntil ?? new DateOnly(2026, 12, 31),
         PictureUrl       = pictureUrl,
         PicturePublicId  = picturePublicId,
         CreatedAt        = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),

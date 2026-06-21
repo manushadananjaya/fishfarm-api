@@ -35,17 +35,30 @@ public sealed class CreateFishFarmCommandHandler
             HasBarge      = req.HasBarge
         };
 
-        // Upload picture if provided
+        // Upload picture if provided — must happen before DB save so we have the URL
+        string? uploadedPublicId = null;
         if (req.Picture is not null)
         {
             var (url, publicId) = await _cloudinary.UploadImageAsync(
                 req.Picture, "fishfarms", cancellationToken);
             farm.PictureUrl      = url;
             farm.PicturePublicId = publicId;
+            uploadedPublicId     = publicId;
         }
 
         await _uow.FishFarms.AddAsync(farm, cancellationToken);
-        await _uow.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _uow.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // DB save failed — clean up the Cloudinary asset to avoid orphaned storage
+            if (uploadedPublicId is not null)
+                await _cloudinary.DeleteImageAsync(uploadedPublicId, CancellationToken.None);
+            throw;
+        }
 
         return farm.Id;
     }

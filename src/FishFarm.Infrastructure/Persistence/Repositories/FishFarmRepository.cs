@@ -8,22 +8,33 @@ public sealed class FishFarmRepository
 {
     public FishFarmRepository(AppDbContext context) : base(context) { }
 
-    public async Task<(IReadOnlyList<Domain.Entities.FishFarm> Items, int TotalCount)> GetPagedAsync(
-        int pageNumber,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)> Items, int TotalCount)>
+        GetPagedAsync(
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
     {
         var query = DbSet.AsNoTracking();
 
         var total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        // Project worker count in-database via a correlated COUNT subquery.
+        // This avoids loading all worker rows just to count them.
+        var projected = await query
             .OrderBy(f => f.Name)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            // Include workers only for count; project or load separately for full detail
-            .Include(f => f.Workers)
+            .Select(f => new
+            {
+                Farm        = f,
+                WorkerCount = f.Workers.Count()   // EF Core translates to SQL COUNT
+            })
             .ToListAsync(cancellationToken);
+
+        var items = projected
+            .Select(p => (p.Farm, p.WorkerCount))
+            .ToList()
+            .AsReadOnly();
 
         return (items, total);
     }

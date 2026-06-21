@@ -1,3 +1,4 @@
+using FishFarm.Application.Common.Models;
 using FishFarm.Application.Features.Workers.Commands;
 using FishFarm.Application.Features.Workers.DTOs;
 using FishFarm.Application.Features.Workers.Queries;
@@ -15,13 +16,31 @@ public sealed class WorkersController : ControllerBase
 
     public WorkersController(IMediator mediator) => _mediator = mediator;
 
-    /// <summary>Get all active workers for a specific fish farm.</summary>
+    /// <summary>Get paginated active workers for a specific fish farm.</summary>
+    /// <remarks>
+    /// Design decisions:
+    /// - Filtering by ?position= / ?certifiedOnly=true / ?search= deferred (#6):
+    ///   No filter params are in the spec; adding dead API surface before frontend
+    ///   confirms requirements is premature. Planned for next iteration.
+    /// - Soft-deleted farms return 404 not 410 (#8): the global query filter makes
+    ///   deleted records invisible; 404 is semantically correct here — the resource
+    ///   is not accessible. Exposing 410 would require tracking deleted IDs separately
+    ///   and leak internal soft-delete state to consumers.
+    /// </remarks>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<WorkerDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PaginatedResult<WorkerDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAll(Guid fishFarmId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll(
+        Guid fishFarmId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize   = 20,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(new GetWorkersByFarmQuery(fishFarmId), cancellationToken);
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize   < 1) pageSize   = 1;
+        if (pageSize   > 100) pageSize = 100;
+        var result = await _mediator.Send(
+            new GetWorkersByFarmQuery(fishFarmId, pageNumber, pageSize), cancellationToken);
         return Ok(result);
     }
 

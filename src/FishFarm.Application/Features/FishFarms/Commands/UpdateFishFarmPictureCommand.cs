@@ -39,7 +39,18 @@ public sealed class UpdateFishFarmPictureCommandHandler
         farm.PicturePublicId = publicId;
 
         _uow.FishFarms.Update(farm);
-        await _uow.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _uow.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // DB save failed — clean up the newly uploaded Cloudinary asset.
+            // Note: the old image is already gone at this point; that is an accepted trade-off.
+            await _cloudinary.DeleteImageAsync(publicId, CancellationToken.None);
+            throw;
+        }
 
         return url;
     }

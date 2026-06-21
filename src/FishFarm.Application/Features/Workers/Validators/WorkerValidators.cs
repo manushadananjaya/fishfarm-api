@@ -69,3 +69,27 @@ public sealed class UpdateWorkerCommandValidator : AbstractValidator<UpdateWorke
             .WithMessage("CertifiedUntil must be a future date.");
     }
 }
+
+public sealed class UpdateWorkerPictureCommandValidator
+    : AbstractValidator<UpdateWorkerPictureCommand>
+{
+    private static readonly string[] AllowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+    private const long MaxFileSizeBytes = 3 * 1024 * 1024; // 3 MB
+
+    public UpdateWorkerPictureCommandValidator()
+    {
+        RuleFor(x => x.Request.Picture)
+            .NotNull().WithMessage("A picture file is required.");
+
+        When(x => x.Request.Picture is not null, () =>
+        {
+            RuleFor(x => x.Request.Picture.Length)
+                .LessThanOrEqualTo(MaxFileSizeBytes)
+                .WithMessage("Picture must not exceed 3 MB.");
+
+            RuleFor(x => x.Request.Picture.ContentType)
+                .Must(ct => AllowedImageTypes.Contains(ct))
+                .WithMessage("Picture must be a JPEG, PNG, or WebP image.");
+        });
+    }
+}

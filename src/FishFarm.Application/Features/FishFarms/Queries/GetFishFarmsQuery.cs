@@ -24,16 +24,16 @@ public sealed class GetFishFarmsQueryHandler
             request.PageSize,
             cancellationToken);
 
-        var dtos = items.Select(f => new FishFarmSummaryDto
+        var dtos = items.Select(p => new FishFarmSummaryDto
         {
-            Id            = f.Id,
-            Name          = f.Name,
-            GpsLatitude   = f.GpsLatitude,
-            GpsLongitude  = f.GpsLongitude,
-            NumberOfCages = f.NumberOfCages,
-            HasBarge      = f.HasBarge,
-            PictureUrl    = f.PictureUrl,
-            WorkerCount   = f.Workers.Count(w => !w.IsDeleted)
+            Id            = p.Farm.Id,
+            Name          = p.Farm.Name,
+            GpsLatitude   = p.Farm.GpsLatitude,
+            GpsLongitude  = p.Farm.GpsLongitude,
+            NumberOfCages = p.Farm.NumberOfCages,
+            HasBarge      = p.Farm.HasBarge,
+            PictureUrl    = p.Farm.PictureUrl,
+            WorkerCount   = p.WorkerCount
         }).ToList();
 
         return PaginatedResult<FishFarmSummaryDto>.Create(dtos, total, request.PageNumber, request.PageSize);

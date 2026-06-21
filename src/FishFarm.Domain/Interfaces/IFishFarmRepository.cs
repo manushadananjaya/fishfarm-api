@@ -7,7 +7,7 @@ namespace FishFarm.Domain.Interfaces;
 /// </summary>
 public interface IFishFarmRepository : IRepository<FishFarmEntity>
 {
-    Task<(IReadOnlyList<FishFarmEntity> Items, int TotalCount)> GetPagedAsync(
+    Task<(IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)> Items, int TotalCount)> GetPagedAsync(
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken = default);

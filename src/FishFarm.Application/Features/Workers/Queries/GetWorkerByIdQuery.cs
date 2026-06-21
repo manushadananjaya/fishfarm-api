@@ -22,6 +22,8 @@ public sealed class GetWorkerByIdQueryHandler
             request.WorkerId, request.FishFarmId, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.Worker), request.WorkerId);
 
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         return new WorkerDto
         {
             Id             = worker.Id,
@@ -31,6 +33,7 @@ public sealed class GetWorkerByIdQueryHandler
             Email          = worker.Email,
             Position       = worker.Position.ToString(),
             CertifiedUntil = worker.CertifiedUntil,
+            IsExpired      = worker.CertifiedUntil < today,
             PictureUrl     = worker.PictureUrl,
             CreatedAt      = worker.CreatedAt,
             UpdatedAt      = worker.UpdatedAt

@@ -11,6 +11,12 @@ public interface IWorkerRepository : IRepository<Worker>
         Guid fishFarmId,
         CancellationToken cancellationToken = default);
 
+    Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetPagedByFishFarmAsync(
+        Guid fishFarmId,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     Task<Worker?> GetByIdAndFarmAsync(
         Guid workerId,
         Guid fishFarmId,
@@ -18,6 +24,11 @@ public interface IWorkerRepository : IRepository<Worker>
 
     Task<bool> EmailExistsAsync(
         string email,
+        Guid? excludeWorkerId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> HasCeoAsync(
+        Guid fishFarmId,
         Guid? excludeWorkerId = null,
         CancellationToken cancellationToken = default);
 }

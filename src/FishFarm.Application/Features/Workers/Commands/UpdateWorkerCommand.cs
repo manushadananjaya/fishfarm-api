@@ -20,7 +20,39 @@ public sealed class UpdateWorkerCommandHandler : IRequestHandler<UpdateWorkerCom
             command.WorkerId, command.FishFarmId, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.Worker), command.WorkerId);
 
-        var req = command.Request;
+        var req   = command.Request;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Guard: if the worker's certification has expired, the caller must supply
+        // a new future date to renew it. Silently updating other fields on an
+        // expired-cert worker is rejected to prevent stale records going unnoticed.
+        if (worker.CertifiedUntil < today && req.CertifiedUntil <= today)
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(req.CertifiedUntil)] =
+                [
+                    "This worker's certification has expired. " +
+                    "Provide a future CertifiedUntil date to renew it before making other changes."
+                ]
+            });
+
+        if (!string.Equals(worker.Email, req.Email, StringComparison.OrdinalIgnoreCase)
+            && await _uow.Workers.EmailExistsAsync(req.Email, command.WorkerId, cancellationToken))
+        {
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(req.Email)] = [$"Email '{req.Email}' is already in use."]
+            });
+        }
+
+        // Guard: only one CEO per farm (allow keeping the same CEO position)
+        if (req.Position == Domain.Enums.WorkerPosition.CEO
+            && await _uow.Workers.HasCeoAsync(command.FishFarmId, command.WorkerId, cancellationToken))
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(req.Position)] = ["This farm already has a CEO."]
+            });
+
         worker.Name           = req.Name;
         worker.Age            = req.Age;
         worker.Email          = req.Email;

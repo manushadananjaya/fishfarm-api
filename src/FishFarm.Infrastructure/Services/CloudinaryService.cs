@@ -52,6 +52,8 @@ public sealed class CloudinaryService : ICloudinaryService
         if (string.IsNullOrWhiteSpace(publicId)) return;
 
         var deleteParams = new DeletionParams(publicId);
+        // Note: the Cloudinary SDK version in use does not expose a cancellable overload
+        // for DestroyAsync; the token cannot be forwarded here until the SDK is upgraded.
         var result = await _cloudinary.DestroyAsync(deleteParams);
 
         if (result.Error is not null)

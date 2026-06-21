@@ -1,4 +1,5 @@
 using FishFarm.API.Controllers;
+using FishFarm.Application.Common.Models;
 using FishFarm.Application.Features.Workers.Commands;
 using FishFarm.Application.Features.Workers.DTOs;
 using FishFarm.Application.Features.Workers.Queries;
@@ -29,42 +30,44 @@ public sealed class WorkersControllerTests
     // ── GET /api/fishfarms/{fishFarmId}/workers ────────────────────────────────
 
     [Fact]
-    public async Task GetAll_ExistingFarm_Returns200WithWorkerList()
+    public async Task GetAll_ExistingFarm_Returns200WithPaginatedResult()
     {
         // Arrange
-        var farmId   = TestDataFactory.FarmId1;
-        var workers  = new List<WorkerDto>
+        var farmId  = TestDataFactory.FarmId1;
+        var workers = new List<WorkerDto>
         {
             TestDataFactory.CreateWorkerDto(TestDataFactory.WorkerId1, farmId),
             TestDataFactory.CreateWorkerDto(TestDataFactory.WorkerId2, farmId)
         };
+        var paginated = PaginatedResult<WorkerDto>.Create(workers, 2, 1, 20);
 
         _mediatorMock
             .Setup(m => m.Send(
                 It.Is<GetWorkersByFarmQuery>(q => q.FishFarmId == farmId),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(workers);
+            .ReturnsAsync(paginated);
 
         // Act
-        var actionResult = await _sut.GetAll(farmId, CancellationToken.None);
+        var actionResult = await _sut.GetAll(farmId, 1, 20, CancellationToken.None);
 
         // Assert
         var ok = actionResult.Should().BeOfType<OkObjectResult>().Subject;
         ok.StatusCode.Should().Be(StatusCodes.Status200OK);
-        ok.Value.Should().BeEquivalentTo(workers);
+        ok.Value.Should().BeEquivalentTo(paginated);
     }
 
     [Fact]
     public async Task GetAll_SendsQueryWithCorrectFarmId()
     {
         // Arrange
-        var farmId = Guid.NewGuid();
+        var farmId   = Guid.NewGuid();
+        var paginated = PaginatedResult<WorkerDto>.Create(new List<WorkerDto>(), 0, 1, 20);
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<GetWorkersByFarmQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<WorkerDto>());
+            .ReturnsAsync(paginated);
 
         // Act
-        await _sut.GetAll(farmId, CancellationToken.None);
+        await _sut.GetAll(farmId, 1, 20, CancellationToken.None);
 
         // Assert
         _mediatorMock.Verify(m => m.Send(
@@ -73,19 +76,39 @@ public sealed class WorkersControllerTests
     }
 
     [Fact]
-    public async Task GetAll_EmptyFarm_Returns200WithEmptyList()
+    public async Task GetAll_EmptyFarm_Returns200WithEmptyItems()
     {
         // Arrange
+        var paginated = PaginatedResult<WorkerDto>.Create(new List<WorkerDto>(), 0, 1, 20);
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<GetWorkersByFarmQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<WorkerDto>());
+            .ReturnsAsync(paginated);
 
         // Act
-        var result = await _sut.GetAll(TestDataFactory.FarmId1, CancellationToken.None);
+        var result = await _sut.GetAll(TestDataFactory.FarmId1, 1, 20, CancellationToken.None);
 
         // Assert
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        ok.Value.As<List<WorkerDto>>().Should().BeEmpty();
+        ok.Value.Should().BeEquivalentTo(paginated);
+    }
+
+    [Fact]
+    public async Task GetAll_PageSizeOver100_CapsAt100()
+    {
+        // Arrange
+        var farmId    = TestDataFactory.FarmId1;
+        var paginated = PaginatedResult<WorkerDto>.Create(new List<WorkerDto>(), 0, 1, 100);
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetWorkersByFarmQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(paginated);
+
+        // Act
+        await _sut.GetAll(farmId, pageNumber: 1, pageSize: 9999, CancellationToken.None);
+
+        // Assert — controller should clamp pageSize to 100
+        _mediatorMock.Verify(m => m.Send(
+            It.Is<GetWorkersByFarmQuery>(q => q.PageSize == 100),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── GET /api/fishfarms/{fishFarmId}/workers/{workerId} ────────────────────

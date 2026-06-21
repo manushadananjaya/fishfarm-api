@@ -28,6 +28,21 @@ public sealed class CreateWorkerCommandHandler : IRequestHandler<CreateWorkerCom
 
         var req = command.Request;
 
+        // Guard: email must be unique across all active workers
+        if (await _uow.Workers.EmailExistsAsync(req.Email, cancellationToken: cancellationToken))
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(req.Email)] = [$"Email '{req.Email}' is already in use."]
+            });
+
+        // Guard: only one CEO per farm
+        if (req.Position == Domain.Enums.WorkerPosition.CEO
+            && await _uow.Workers.HasCeoAsync(command.FishFarmId, cancellationToken: cancellationToken))
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(req.Position)] = ["This farm already has a CEO."]
+            });
+
         var worker = new Worker
         {
             FishFarmId     = command.FishFarmId,
@@ -38,16 +53,29 @@ public sealed class CreateWorkerCommandHandler : IRequestHandler<CreateWorkerCom
             CertifiedUntil = req.CertifiedUntil
         };
 
+        string? uploadedPublicId = null;
         if (req.Picture is not null)
         {
             var (url, publicId) = await _cloudinary.UploadImageAsync(
                 req.Picture, "workers", cancellationToken);
             worker.PictureUrl      = url;
             worker.PicturePublicId = publicId;
+            uploadedPublicId       = publicId;
         }
 
         await _uow.Workers.AddAsync(worker, cancellationToken);
-        await _uow.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _uow.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // DB save failed — clean up the Cloudinary asset to avoid orphaned storage
+            if (uploadedPublicId is not null)
+                await _cloudinary.DeleteImageAsync(uploadedPublicId, CancellationToken.None);
+            throw;
+        }
 
         return worker.Id;
     }

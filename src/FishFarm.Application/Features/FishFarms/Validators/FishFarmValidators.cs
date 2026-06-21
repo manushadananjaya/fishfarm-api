@@ -15,14 +15,20 @@ public sealed class CreateFishFarmCommandValidator : AbstractValidator<CreateFis
             .MaximumLength(200).WithMessage("Name must not exceed 200 characters.");
 
         RuleFor(x => x.Request.GpsLatitude)
-            .InclusiveBetween(-90m, 90m).WithMessage("Latitude must be between -90 and 90.");
+            .InclusiveBetween(-90m, 90m).WithMessage("Latitude must be between -90 and 90.")
+            .Must(v => decimal.Round(v, 4) == v)
+            .WithMessage("Latitude must have at most 4 decimal places.");
 
         RuleFor(x => x.Request.GpsLongitude)
-            .InclusiveBetween(-180m, 180m).WithMessage("Longitude must be between -180 and 180.");
+            .InclusiveBetween(-180m, 180m).WithMessage("Longitude must be between -180 and 180.")
+            .Must(v => decimal.Round(v, 4) == v)
+            .WithMessage("Longitude must have at most 4 decimal places.");
 
         RuleFor(x => x.Request.NumberOfCages)
             .GreaterThan(0).WithMessage("NumberOfCages must be greater than 0.");
 
+        // Picture is optional on create — farms can be registered without one and a picture
+        // uploaded separately via PATCH /picture. See FishFarmRequests.cs for rationale.
         When(x => x.Request.Picture is not null, () =>
         {
             RuleFor(x => x.Request.Picture!.Length)
@@ -45,12 +51,40 @@ public sealed class UpdateFishFarmCommandValidator : AbstractValidator<UpdateFis
             .MaximumLength(200).WithMessage("Name must not exceed 200 characters.");
 
         RuleFor(x => x.Request.GpsLatitude)
-            .InclusiveBetween(-90m, 90m).WithMessage("Latitude must be between -90 and 90.");
+            .InclusiveBetween(-90m, 90m).WithMessage("Latitude must be between -90 and 90.")
+            .Must(v => decimal.Round(v, 4) == v)
+            .WithMessage("Latitude must have at most 4 decimal places.");
 
         RuleFor(x => x.Request.GpsLongitude)
-            .InclusiveBetween(-180m, 180m).WithMessage("Longitude must be between -180 and 180.");
+            .InclusiveBetween(-180m, 180m).WithMessage("Longitude must be between -180 and 180.")
+            .Must(v => decimal.Round(v, 4) == v)
+            .WithMessage("Longitude must have at most 4 decimal places.");
 
         RuleFor(x => x.Request.NumberOfCages)
             .GreaterThan(0).WithMessage("NumberOfCages must be greater than 0.");
+    }
+}
+
+public sealed class UpdateFishFarmPictureCommandValidator
+    : AbstractValidator<UpdateFishFarmPictureCommand>
+{
+    private static readonly string[] AllowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+    private const long MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+
+    public UpdateFishFarmPictureCommandValidator()
+    {
+        RuleFor(x => x.Request.Picture)
+            .NotNull().WithMessage("A picture file is required.");
+
+        When(x => x.Request.Picture is not null, () =>
+        {
+            RuleFor(x => x.Request.Picture.Length)
+                .LessThanOrEqualTo(MaxFileSizeBytes)
+                .WithMessage("Picture must not exceed 5 MB.");
+
+            RuleFor(x => x.Request.Picture.ContentType)
+                .Must(ct => AllowedImageTypes.Contains(ct))
+                .WithMessage("Picture must be a JPEG, PNG, or WebP image.");
+        });
     }
 }

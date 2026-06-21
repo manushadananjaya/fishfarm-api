@@ -40,7 +40,18 @@ public sealed class UpdateWorkerPictureCommandHandler
         worker.PicturePublicId = publicId;
 
         _uow.Workers.Update(worker);
-        await _uow.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _uow.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // DB save failed — clean up the newly uploaded Cloudinary asset.
+            // Note: the old image is already gone at this point; that is an accepted trade-off.
+            await _cloudinary.DeleteImageAsync(publicId, CancellationToken.None);
+            throw;
+        }
 
         return url;
     }

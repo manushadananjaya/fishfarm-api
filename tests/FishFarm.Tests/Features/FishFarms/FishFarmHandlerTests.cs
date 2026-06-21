@@ -44,7 +44,10 @@ public sealed class FishFarmHandlerTests
 
         _farmRepoMock
             .Setup(r => r.GetPagedAsync(1, 10, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((items, 2));
+            .ReturnsAsync((
+                (IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)>)
+                    new List<(Domain.Entities.FishFarm, int)> { (farm1, 0), (farm2, 0) },
+                2));
 
         var handler = new GetFishFarmsQueryHandler(_uowMock.Object);
         var query   = new GetFishFarmsQuery(1, 10);
@@ -71,9 +74,13 @@ public sealed class FishFarmHandlerTests
         farm.AddWorker(worker1);
         farm.AddWorker(worker2);
 
+        // The handler now reads WorkerCount directly from the repository projection.
         _farmRepoMock
             .Setup(r => r.GetPagedAsync(1, 10, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(([farm], 1));
+            .ReturnsAsync((
+                (IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)>)
+                    new List<(Domain.Entities.FishFarm, int)> { (farm, 2) },
+                1));
 
         var handler = new GetFishFarmsQueryHandler(_uowMock.Object);
 
@@ -90,7 +97,10 @@ public sealed class FishFarmHandlerTests
         // Arrange
         _farmRepoMock
             .Setup(r => r.GetPagedAsync(99, 10, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((new List<Domain.Entities.FishFarm>(), 0));
+            .ReturnsAsync((
+                (IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)>)
+                    new List<(Domain.Entities.FishFarm, int)>(),
+                0));
 
         var handler = new GetFishFarmsQueryHandler(_uowMock.Object);
 
