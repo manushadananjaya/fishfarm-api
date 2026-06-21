@@ -8,16 +8,10 @@ public sealed class CreateWorkerRequest
     public string Name { get; init; } = default!;
     public int Age { get; init; }
     public string Email { get; init; } = default!;
-
-    /// <summary>
-    /// Accept either int value (1,2,3) or string name (CEO, Worker, Captain).
-    /// Stored as INT in the database.
-    /// </summary>
     public WorkerPosition Position { get; init; }
 
     public DateOnly CertifiedUntil { get; init; }
 
-    /// <summary>Optional worker profile picture.</summary>
     public IFormFile? Picture { get; init; }
 }
 

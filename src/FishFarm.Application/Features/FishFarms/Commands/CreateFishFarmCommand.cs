@@ -6,11 +6,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace FishFarm.Application.Features.FishFarms.Commands;
 
-// ── Command ──────────────────────────────────────────────────────────────────
-
 public sealed record CreateFishFarmCommand(CreateFishFarmRequest Request) : IRequest<Guid>;
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class CreateFishFarmCommandHandler
     : IRequestHandler<CreateFishFarmCommand, Guid>

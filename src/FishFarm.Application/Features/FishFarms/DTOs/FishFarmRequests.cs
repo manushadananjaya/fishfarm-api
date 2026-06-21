@@ -10,7 +10,6 @@ public sealed class CreateFishFarmRequest
     public int NumberOfCages { get; init; }
     public bool HasBarge { get; init; }
 
-    /// <summary>Optional picture uploaded via multipart/form-data.</summary>
     public IFormFile? Picture { get; init; }
 }
 

@@ -7,11 +7,7 @@ using MediatR;
 
 namespace FishFarm.Application.Features.Workers.Commands;
 
-// ── Command ──────────────────────────────────────────────────────────────────
-
 public sealed record CreateWorkerCommand(Guid FishFarmId, CreateWorkerRequest Request) : IRequest<Guid>;
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class CreateWorkerCommandHandler : IRequestHandler<CreateWorkerCommand, Guid>
 {

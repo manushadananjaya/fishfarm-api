@@ -9,11 +9,6 @@ public sealed class WorkerDto
     public string Name { get; init; } = default!;
     public int Age { get; init; }
     public string Email { get; init; } = default!;
-
-    /// <summary>
-    /// Enum integer value is stored in DB; returned as string name in API responses
-    /// so clients don't need to know the mapping.
-    /// </summary>
     public string Position { get; init; } = default!;
 
     public DateOnly CertifiedUntil { get; init; }

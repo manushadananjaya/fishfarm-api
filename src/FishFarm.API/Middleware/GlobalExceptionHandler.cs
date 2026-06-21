@@ -5,10 +5,6 @@ using ValidationException = FishFarm.Application.Common.Exceptions.ValidationExc
 
 namespace FishFarm.API.Middleware;
 
-/// <summary>
-/// Global exception handler that converts exceptions to RFC 7807 ProblemDetails responses.
-/// Registered via app.UseExceptionHandler() in Program.cs.
-/// </summary>
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;

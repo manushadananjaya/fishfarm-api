@@ -5,11 +5,7 @@ using MediatR;
 
 namespace FishFarm.Application.Features.Workers.Commands;
 
-// ── Command ──────────────────────────────────────────────────────────────────
-
 public sealed record DeleteWorkerCommand(Guid FishFarmId, Guid WorkerId) : IRequest;
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class DeleteWorkerCommandHandler : IRequestHandler<DeleteWorkerCommand>
 {

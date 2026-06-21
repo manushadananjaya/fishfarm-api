@@ -5,11 +5,7 @@ using MediatR;
 
 namespace FishFarm.Application.Features.Workers.Queries;
 
-// ── Query ────────────────────────────────────────────────────────────────────
-
 public sealed record GetWorkersByFarmQuery(Guid FishFarmId) : IRequest<IReadOnlyList<WorkerDto>>;
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class GetWorkersByFarmQueryHandler
     : IRequestHandler<GetWorkersByFarmQuery, IReadOnlyList<WorkerDto>>

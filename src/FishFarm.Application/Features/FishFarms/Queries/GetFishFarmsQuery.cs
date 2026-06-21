@@ -5,12 +5,8 @@ using MediatR;
 
 namespace FishFarm.Application.Features.FishFarms.Queries;
 
-// ── Query ────────────────────────────────────────────────────────────────────
-
 public sealed record GetFishFarmsQuery(int PageNumber = 1, int PageSize = 10)
     : IRequest<PaginatedResult<FishFarmSummaryDto>>;
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class GetFishFarmsQueryHandler
     : IRequestHandler<GetFishFarmsQuery, PaginatedResult<FishFarmSummaryDto>>

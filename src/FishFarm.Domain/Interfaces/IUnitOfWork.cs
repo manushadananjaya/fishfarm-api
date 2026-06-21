@@ -8,6 +8,6 @@ public interface IUnitOfWork : IAsyncDisposable
     IFishFarmRepository FishFarms { get; }
     IWorkerRepository Workers { get; }
 
-    /// <summary>Commits all pending changes to the database.</summary>
+    
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

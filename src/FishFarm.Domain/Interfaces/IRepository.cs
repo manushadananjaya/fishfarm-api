@@ -17,9 +17,5 @@ public interface IRepository<T> where T : BaseAuditableEntity
 
     void Update(T entity);
 
-    /// <summary>
-    /// Soft-deletes the entity (sets IsDeleted = true).
-    /// The SaveChanges interceptor enforces this at the DbContext level as well.
-    /// </summary>
     void Delete(T entity);
 }

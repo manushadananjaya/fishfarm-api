@@ -6,11 +6,7 @@ using MediatR;
 
 namespace FishFarm.Application.Features.FishFarms.Queries;
 
-// ── Query ────────────────────────────────────────────────────────────────────
-
 public sealed record GetFishFarmByIdQuery(Guid Id) : IRequest<FishFarmDto>;
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class GetFishFarmByIdQueryHandler
     : IRequestHandler<GetFishFarmByIdQuery, FishFarmDto>

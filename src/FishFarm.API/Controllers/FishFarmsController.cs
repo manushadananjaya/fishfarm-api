@@ -24,7 +24,7 @@ public sealed class FishFarmsController : ControllerBase
         [FromQuery] int pageSize   = 10,
         CancellationToken cancellationToken = default)
     {
-        if (pageSize > 50) pageSize = 50;  // enforce max page size
+        if (pageSize > 50) pageSize = 50;  
         var result = await _mediator.Send(new GetFishFarmsQuery(pageNumber, pageSize), cancellationToken);
         return Ok(result);
     }
