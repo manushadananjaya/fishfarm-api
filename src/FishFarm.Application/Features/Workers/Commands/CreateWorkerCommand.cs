@@ -27,9 +27,10 @@ public sealed class CreateWorkerCommandHandler : IRequestHandler<CreateWorkerCom
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), command.FishFarmId);
 
         var req = command.Request;
+        var normalizedEmail = req.Email.ToLowerInvariant();
 
         // Guard: email must be unique across all active workers
-        if (await _uow.Workers.EmailExistsAsync(req.Email, cancellationToken: cancellationToken))
+        if (await _uow.Workers.EmailExistsAsync(normalizedEmail, cancellationToken: cancellationToken))
             throw new ValidationException(new Dictionary<string, string[]>
             {
                 [nameof(req.Email)] = [$"Email '{req.Email}' is already in use."]
@@ -48,7 +49,7 @@ public sealed class CreateWorkerCommandHandler : IRequestHandler<CreateWorkerCom
             FishFarmId     = command.FishFarmId,
             Name           = req.Name,
             Age            = req.Age,
-            Email          = req.Email,
+            Email          = normalizedEmail,
             Position       = req.Position,
             CertifiedUntil = req.CertifiedUntil
         };

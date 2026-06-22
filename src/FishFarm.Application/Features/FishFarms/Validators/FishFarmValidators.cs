@@ -100,6 +100,14 @@ public sealed class GetFishFarmsQueryValidator : AbstractValidator<GetFishFarmsQ
 
     public GetFishFarmsQueryValidator()
     {
+        RuleFor(x => x.PageNumber)
+            .GreaterThanOrEqualTo(1)
+            .WithMessage("PageNumber must be at least 1.");
+
+        RuleFor(x => x.PageSize)
+            .GreaterThanOrEqualTo(1)
+            .WithMessage("PageSize must be at least 1.");
+
         When(x => x.Search is not null, () =>
             RuleFor(x => x.Search!)
                 .MaximumLength(200)

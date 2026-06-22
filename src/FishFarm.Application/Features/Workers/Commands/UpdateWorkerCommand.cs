@@ -22,6 +22,7 @@ public sealed class UpdateWorkerCommandHandler : IRequestHandler<UpdateWorkerCom
 
         var req   = command.Request;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var normalizedEmail = req.Email.ToLowerInvariant();
 
         // CertifiedUntil must always be a strictly future date — setting it to today
         // or the past would immediately mark the worker as expired.
@@ -39,8 +40,8 @@ public sealed class UpdateWorkerCommandHandler : IRequestHandler<UpdateWorkerCom
                 ]
             });
 
-        if (!string.Equals(worker.Email, req.Email, StringComparison.OrdinalIgnoreCase)
-            && await _uow.Workers.EmailExistsAsync(req.Email, command.WorkerId, cancellationToken))
+        if (!string.Equals(worker.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase)
+            && await _uow.Workers.EmailExistsAsync(normalizedEmail, command.WorkerId, cancellationToken))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -58,7 +59,7 @@ public sealed class UpdateWorkerCommandHandler : IRequestHandler<UpdateWorkerCom
 
         worker.Name           = req.Name;
         worker.Age            = req.Age;
-        worker.Email          = req.Email;
+        worker.Email          = normalizedEmail;
         worker.Position       = req.Position;
         worker.CertifiedUntil = req.CertifiedUntil;
 

@@ -37,10 +37,4 @@ public sealed class FishFarm : BaseAuditableEntity
         ArgumentNullException.ThrowIfNull(worker);
         _workers.Add(worker);
     }
-
-    public void RemoveWorker(Worker worker)
-    {
-        ArgumentNullException.ThrowIfNull(worker);
-        _workers.Remove(worker);
-    }
 }
