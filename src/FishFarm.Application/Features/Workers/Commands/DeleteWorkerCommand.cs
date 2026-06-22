@@ -24,8 +24,15 @@ public sealed class DeleteWorkerCommandHandler : IRequestHandler<DeleteWorkerCom
             command.WorkerId, command.FishFarmId, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.Worker), command.WorkerId);
 
+        // Capture the public ID before mutating state.
+        var picturePublicId = worker.PicturePublicId;
+
         _uow.Workers.Delete(worker);
-        await _cloudinary.DeleteImageAsync(worker.PicturePublicId, cancellationToken);
+
+        // DB commit is the source of truth — if this fails, no CDN asset is touched.
         await _uow.SaveChangesAsync(cancellationToken);
+
+        // CDN cleanup is best-effort after the DB record is committed.
+        await _cloudinary.DeleteImageAsync(picturePublicId, cancellationToken);
     }
 }

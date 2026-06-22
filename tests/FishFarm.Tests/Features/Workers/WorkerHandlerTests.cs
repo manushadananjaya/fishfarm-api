@@ -574,8 +574,9 @@ public sealed class WorkerHandlerTests
             new CreateWorkerCommand(farmId, request), CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<Application.Common.Exceptions.ValidationException>()
-            .WithMessage("*validation*");
+        var ex = await act.Should()
+            .ThrowAsync<Application.Common.Exceptions.ValidationException>();
+        ex.Which.Errors.Should().ContainKey(nameof(CreateWorkerRequest.Position));
     }
 
     [Fact]
@@ -610,8 +611,9 @@ public sealed class WorkerHandlerTests
             new UpdateWorkerCommand(farmId, workerId, request), CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<Application.Common.Exceptions.ValidationException>()
-            .WithMessage("*validation*");
+        var ex = await act.Should()
+            .ThrowAsync<Application.Common.Exceptions.ValidationException>();
+        ex.Which.Errors.Should().ContainKey(nameof(UpdateWorkerRequest.Position));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -648,8 +650,45 @@ public sealed class WorkerHandlerTests
             new UpdateWorkerCommand(farmId, workerId, request), CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<Application.Common.Exceptions.ValidationException>()
-            .WithMessage("*validation*");
+        var ex = await act.Should()
+            .ThrowAsync<Application.Common.Exceptions.ValidationException>();
+        ex.Which.Errors.Should().ContainKey(nameof(UpdateWorkerRequest.CertifiedUntil));
+    }
+
+    [Fact]
+    public async Task UpdateWorkerHandler_ActiveWorkerCertSetToToday_ThrowsValidationException()
+    {
+        // Arrange – worker whose cert is currently valid, but caller submits today as the new date.
+        // Setting CertifiedUntil = today would mark the worker as expired by tomorrow;
+        // the handler rejects this regardless of whether the stored cert is expired.
+        var farmId   = TestDataFactory.FarmId1;
+        var workerId = TestDataFactory.WorkerId1;
+        var worker   = TestDataFactory.CreateWorkerEntity(workerId, farmId,
+            certifiedUntil: new DateOnly(2099, 12, 31));   // currently valid
+
+        var request = new UpdateWorkerRequest
+        {
+            Name           = worker.Name,
+            Age            = worker.Age,
+            Email          = worker.Email,
+            Position       = WorkerPosition.Worker,
+            CertifiedUntil = DateOnly.FromDateTime(DateTime.UtcNow)    // today – not strictly future
+        };
+
+        _workerRepoMock
+            .Setup(r => r.GetByIdAndFarmAsync(workerId, farmId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(worker);
+
+        var handler = new UpdateWorkerCommandHandler(_uowMock.Object);
+
+        // Act
+        var act = async () => await handler.Handle(
+            new UpdateWorkerCommand(farmId, workerId, request), CancellationToken.None);
+
+        // Assert
+        var ex = await act.Should()
+            .ThrowAsync<Application.Common.Exceptions.ValidationException>();
+        ex.Which.Errors.Should().ContainKey(nameof(UpdateWorkerRequest.CertifiedUntil));
     }
 
     [Fact]

@@ -23,16 +23,19 @@ public sealed class UpdateWorkerCommandHandler : IRequestHandler<UpdateWorkerCom
         var req   = command.Request;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Guard: if the worker's certification has expired, the caller must supply
-        // a new future date to renew it. Silently updating other fields on an
-        // expired-cert worker is rejected to prevent stale records going unnoticed.
-        if (worker.CertifiedUntil < today && req.CertifiedUntil <= today)
+        // CertifiedUntil must always be a strictly future date — setting it to today
+        // or the past would immediately mark the worker as expired.
+        // This mirrors the FluentValidation rule and acts as defense-in-depth for
+        // non-HTTP callers (internal dispatch, tests, message consumers).
+        if (req.CertifiedUntil <= today)
             throw new ValidationException(new Dictionary<string, string[]>
             {
                 [nameof(req.CertifiedUntil)] =
                 [
-                    "This worker's certification has expired. " +
-                    "Provide a future CertifiedUntil date to renew it before making other changes."
+                    worker.CertifiedUntil < today
+                        ? "This worker's certification has expired. " +
+                          "Provide a future CertifiedUntil date to renew it before making other changes."
+                        : "CertifiedUntil must be a future date."
                 ]
             });
 

@@ -159,16 +159,22 @@ public sealed class FishFarmHandlerTests
     }
 
     [Fact]
-    public async Task GetFishFarmByIdHandler_ExcludesDeletedWorkers()
+    public async Task GetFishFarmByIdHandler_ProjectsWorkerIsExpiredCorrectly()
     {
         // Arrange
-        var farmId         = TestDataFactory.FarmId1;
-        var farm           = TestDataFactory.CreateFishFarmEntity(farmId);
-        var activeWorker   = TestDataFactory.CreateWorkerEntity();
-        var deletedWorker  = TestDataFactory.CreateWorkerEntity(Guid.NewGuid(), email: "del@example.com");
-        deletedWorker.IsDeleted = true;
-        farm.AddWorker(activeWorker);
-        farm.AddWorker(deletedWorker);
+        // EF's global query filter on Worker excludes soft-deleted rows before they reach the
+        // handler — the mock models that contract by only returning active workers.
+        var farmId  = TestDataFactory.FarmId1;
+        var farm    = TestDataFactory.CreateFishFarmEntity(farmId);
+        var expired = TestDataFactory.CreateWorkerEntity(
+            TestDataFactory.WorkerId1,
+            certifiedUntil: new DateOnly(2020, 1, 1));   // cert in the past
+        var active  = TestDataFactory.CreateWorkerEntity(
+            TestDataFactory.WorkerId2,
+            email: "active@example.com",
+            certifiedUntil: new DateOnly(2099, 12, 31));  // cert in the future
+        farm.AddWorker(expired);
+        farm.AddWorker(active);
 
         _farmRepoMock
             .Setup(r => r.GetWithWorkersAsync(farmId, It.IsAny<CancellationToken>()))
@@ -179,9 +185,10 @@ public sealed class FishFarmHandlerTests
         // Act
         var result = await handler.Handle(new GetFishFarmByIdQuery(farmId), CancellationToken.None);
 
-        // Assert – only the active worker should be in the DTO
-        result.Workers.Should().HaveCount(1);
-        result.Workers[0].Email.Should().Be("john.fisher@example.com");
+        // Assert – both workers projected; IsExpired computed correctly for each
+        result.Workers.Should().HaveCount(2);
+        result.Workers.Single(w => w.Id == TestDataFactory.WorkerId1).IsExpired.Should().BeTrue();
+        result.Workers.Single(w => w.Id == TestDataFactory.WorkerId2).IsExpired.Should().BeFalse();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -434,15 +441,14 @@ public sealed class FishFarmHandlerTests
     }
 
     [Fact]
-    public async Task DeleteFishFarmHandler_AlreadyDeletedWorkers_NotProcessedAgain()
+    public async Task DeleteFishFarmHandler_FarmWithNoActiveWorkers_OnlyFarmDeleted()
     {
         // Arrange
+        // EF's global query filter guarantees GetWithWorkersAsync never returns soft-deleted
+        // workers — the handler iterates farm.Workers unconditionally and relies on that contract.
+        // This test models a farm that legitimately has no active workers.
         var farmId = TestDataFactory.FarmId1;
-        var farm   = TestDataFactory.CreateFishFarmEntity(farmId);
-
-        var alreadyDeleted = TestDataFactory.CreateWorkerEntity();
-        alreadyDeleted.IsDeleted = true;
-        farm.AddWorker(alreadyDeleted);
+        var farm   = TestDataFactory.CreateFishFarmEntity(farmId);   // no workers added
 
         var workerRepoMock = new Mock<IWorkerRepository>();
         _uowMock.Setup(u => u.Workers).Returns(workerRepoMock.Object);
@@ -460,7 +466,9 @@ public sealed class FishFarmHandlerTests
         // Act
         await handler.Handle(new DeleteFishFarmCommand(farmId), CancellationToken.None);
 
-        // Assert – the already-deleted worker must NOT be processed again
+        // Assert – no workers to process; only the farm itself should be soft-deleted
         workerRepoMock.Verify(r => r.Delete(It.IsAny<Domain.Entities.Worker>()), Times.Never);
+        _farmRepoMock.Verify(r => r.Delete(farm), Times.Once);
+        _uowMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

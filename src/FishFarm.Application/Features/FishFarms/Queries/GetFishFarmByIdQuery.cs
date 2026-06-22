@@ -22,6 +22,8 @@ public sealed class GetFishFarmByIdQueryHandler
         var farm = await _uow.FishFarms.GetWithWorkersAsync(request.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), request.Id);
 
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
         return new FishFarmDto
         {
             Id            = farm.Id,
@@ -43,6 +45,7 @@ public sealed class GetFishFarmByIdQueryHandler
                     Email          = w.Email,
                     Position       = w.Position.ToString(),
                     CertifiedUntil = w.CertifiedUntil,
+                    IsExpired      = w.CertifiedUntil < today,
                     PictureUrl     = w.PictureUrl,
                     CreatedAt      = w.CreatedAt,
                     UpdatedAt      = w.UpdatedAt
