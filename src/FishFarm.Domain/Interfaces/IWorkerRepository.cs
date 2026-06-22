@@ -7,10 +7,6 @@ namespace FishFarm.Domain.Interfaces;
 /// </summary>
 public interface IWorkerRepository : IRepository<Worker>
 {
-    Task<IReadOnlyList<Worker>> GetByFishFarmAsync(
-        Guid fishFarmId,
-        CancellationToken cancellationToken = default);
-
     Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetPagedByFishFarmAsync(
         Guid fishFarmId,
         int pageNumber,

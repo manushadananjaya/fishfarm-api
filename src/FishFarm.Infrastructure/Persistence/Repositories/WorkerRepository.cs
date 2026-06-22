@@ -9,15 +9,6 @@ public sealed class WorkerRepository : BaseRepository<Worker>, IWorkerRepository
 {
     public WorkerRepository(AppDbContext context) : base(context) { }
 
-    public async Task<IReadOnlyList<Worker>> GetByFishFarmAsync(
-        Guid fishFarmId,
-        CancellationToken cancellationToken = default)
-        => await DbSet
-            .AsNoTracking()
-            .Where(w => w.FishFarmId == fishFarmId)
-            .OrderBy(w => w.Name)
-            .ToListAsync(cancellationToken);
-
     public async Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetPagedByFishFarmAsync(
         Guid fishFarmId,
         int pageNumber,

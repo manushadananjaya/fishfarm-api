@@ -34,7 +34,6 @@ public sealed class GetFishFarmByIdQueryHandler
             CreatedAt     = farm.CreatedAt,
             UpdatedAt     = farm.UpdatedAt,
             Workers       = farm.Workers
-                .Where(w => !w.IsDeleted)
                 .Select(w => new WorkerDto
                 {
                     Id             = w.Id,

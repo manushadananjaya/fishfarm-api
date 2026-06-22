@@ -28,7 +28,7 @@ public sealed class CreateWorkerCommandValidator : AbstractValidator<CreateWorke
                 $"Position must be one of: {string.Join(", ", Enum.GetNames<WorkerPosition>())}.");
 
         RuleFor(x => x.Request.CertifiedUntil)
-            .GreaterThan(DateOnly.FromDateTime(DateTime.UtcNow))
+            .GreaterThan(_ => DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("CertifiedUntil must be a future date.");
 
         When(x => x.Request.Picture is not null, () =>
@@ -65,7 +65,7 @@ public sealed class UpdateWorkerCommandValidator : AbstractValidator<UpdateWorke
                 $"Position must be one of: {string.Join(", ", Enum.GetNames<WorkerPosition>())}.");
 
         RuleFor(x => x.Request.CertifiedUntil)
-            .GreaterThan(DateOnly.FromDateTime(DateTime.UtcNow))
+            .GreaterThan(_ => DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("CertifiedUntil must be a future date.");
     }
 }

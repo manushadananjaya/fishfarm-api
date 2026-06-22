@@ -23,20 +23,28 @@ public sealed class DeleteFishFarmCommandHandler : IRequestHandler<DeleteFishFar
         var farm = await _uow.FishFarms.GetWithWorkersAsync(command.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), command.Id);
 
-        // Soft-delete all workers belonging to this farm (cascade soft-delete)
-        foreach (var worker in farm.Workers.Where(w => !w.IsDeleted))
-        {
-            _uow.Workers.Delete(worker);
-            // Clean up worker Cloudinary assets
-            await _cloudinary.DeleteImageAsync(worker.PicturePublicId, cancellationToken);
-        }
+        // Collect Cloudinary public IDs before mutating any state.
+        // Global query filter means farm.Workers already excludes soft-deleted entries.
+        var workerPublicIds = farm.Workers
+            .Select(w => w.PicturePublicId)
+            .Where(id => id is not null)
+            .ToList();
 
-        // Soft-delete the farm itself
+        // Apply all soft-deletes in memory (no I/O), then persist atomically in one round-trip.
+        foreach (var worker in farm.Workers)
+            _uow.Workers.Delete(worker);
+
         _uow.FishFarms.Delete(farm);
 
-        // Delete farm Cloudinary image
-        await _cloudinary.DeleteImageAsync(farm.PicturePublicId, cancellationToken);
-
+        // DB commit is the source of truth — if this fails, no assets are touched.
         await _uow.SaveChangesAsync(cancellationToken);
+
+        // CDN cleanup is best-effort after the DB is committed. Run in parallel to avoid N+1 latency.
+        // Orphaned assets on partial failure are recoverable via monitoring; they are not user-visible.
+        var cloudinaryTasks = workerPublicIds
+            .Select(id => _cloudinary.DeleteImageAsync(id!, cancellationToken))
+            .Append(_cloudinary.DeleteImageAsync(farm.PicturePublicId, cancellationToken));
+
+        await Task.WhenAll(cloudinaryTasks);
     }
 }
