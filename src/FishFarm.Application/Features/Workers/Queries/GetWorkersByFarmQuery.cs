@@ -1,15 +1,19 @@
 using FishFarm.Application.Common.Exceptions;
 using FishFarm.Application.Common.Models;
 using FishFarm.Application.Features.Workers.DTOs;
+using FishFarm.Domain.Enums;
 using FishFarm.Domain.Interfaces;
 using MediatR;
 
 namespace FishFarm.Application.Features.Workers.Queries;
 
 public sealed record GetWorkersByFarmQuery(
-    Guid FishFarmId,
-    int PageNumber = 1,
-    int PageSize   = 20)
+    Guid            FishFarmId,
+    int             PageNumber   = 1,
+    int             PageSize     = 20,
+    string?         Search       = null,
+    WorkerPosition? Position     = null,
+    bool?           CertExpired  = null)
     : IRequest<PaginatedResult<WorkerDto>>;
 
 public sealed class GetWorkersByFarmQueryHandler
@@ -31,6 +35,9 @@ public sealed class GetWorkersByFarmQueryHandler
             request.FishFarmId,
             request.PageNumber,
             request.PageSize,
+            request.Search,
+            request.Position,
+            request.CertExpired,
             cancellationToken);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);

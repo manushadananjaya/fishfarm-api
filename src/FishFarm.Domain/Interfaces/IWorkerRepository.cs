@@ -1,4 +1,5 @@
 using FishFarm.Domain.Entities;
+using FishFarm.Domain.Enums;
 
 namespace FishFarm.Domain.Interfaces;
 
@@ -11,6 +12,9 @@ public interface IWorkerRepository : IRepository<Worker>
         Guid fishFarmId,
         int pageNumber,
         int pageSize,
+        string?         search      = null,
+        WorkerPosition? position    = null,
+        bool?           certExpired = null,
         CancellationToken cancellationToken = default);
 
     Task<Worker?> GetByIdAndFarmAsync(

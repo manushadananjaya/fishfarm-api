@@ -1,4 +1,5 @@
 using FishFarm.Application.Features.Workers.Commands;
+using FishFarm.Application.Features.Workers.Queries;
 using FishFarm.Domain.Enums;
 using FluentValidation;
 
@@ -91,5 +92,16 @@ public sealed class UpdateWorkerPictureCommandValidator
                 .Must(ct => AllowedImageTypes.Contains(ct))
                 .WithMessage("Picture must be a JPEG, PNG, or WebP image.");
         });
+    }
+}
+
+public sealed class GetWorkersByFarmQueryValidator : AbstractValidator<GetWorkersByFarmQuery>
+{
+    public GetWorkersByFarmQueryValidator()
+    {
+        When(x => x.Search is not null, () =>
+            RuleFor(x => x.Search!)
+                .MaximumLength(200)
+                .WithMessage("Search term must not exceed 200 characters."));
     }
 }

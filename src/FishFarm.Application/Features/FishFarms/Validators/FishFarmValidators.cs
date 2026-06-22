@@ -1,4 +1,5 @@
 using FishFarm.Application.Features.FishFarms.Commands;
+using FishFarm.Application.Features.FishFarms.Queries;
 using FluentValidation;
 
 namespace FishFarm.Application.Features.FishFarms.Validators;
@@ -86,5 +87,31 @@ public sealed class UpdateFishFarmPictureCommandValidator
                 .Must(ct => AllowedImageTypes.Contains(ct))
                 .WithMessage("Picture must be a JPEG, PNG, or WebP image.");
         });
+    }
+}
+
+public sealed class GetFishFarmsQueryValidator : AbstractValidator<GetFishFarmsQuery>
+{
+    public GetFishFarmsQueryValidator()
+    {
+        When(x => x.Search is not null, () =>
+            RuleFor(x => x.Search!)
+                .MaximumLength(200)
+                .WithMessage("Search term must not exceed 200 characters."));
+
+        When(x => x.MinCages.HasValue, () =>
+            RuleFor(x => x.MinCages!.Value)
+                .GreaterThan(0)
+                .WithMessage("MinCages must be greater than 0."));
+
+        When(x => x.MaxCages.HasValue, () =>
+            RuleFor(x => x.MaxCages!.Value)
+                .GreaterThan(0)
+                .WithMessage("MaxCages must be greater than 0."));
+
+        When(x => x.MinCages.HasValue && x.MaxCages.HasValue, () =>
+            RuleFor(x => x.MinCages!.Value)
+                .LessThanOrEqualTo(x => x.MaxCages!.Value)
+                .WithMessage("MinCages must not be greater than MaxCages."));
     }
 }

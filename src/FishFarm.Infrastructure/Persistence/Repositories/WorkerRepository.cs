@@ -13,9 +13,28 @@ public sealed class WorkerRepository : BaseRepository<Worker>, IWorkerRepository
         Guid fishFarmId,
         int pageNumber,
         int pageSize,
+        string?         search      = null,
+        WorkerPosition? position    = null,
+        bool?           certExpired = null,
         CancellationToken cancellationToken = default)
     {
         var query = DbSet.AsNoTracking().Where(w => w.FishFarmId == fishFarmId);
+
+        // All filters applied before CountAsync so TotalCount reflects the filtered set.
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(w => w.Name.Contains(search) || w.Email.Contains(search));
+
+        if (position.HasValue)
+            query = query.Where(w => w.Position == position.Value);
+
+        if (certExpired.HasValue)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            query = certExpired.Value
+                ? query.Where(w => w.CertifiedUntil < today)
+                : query.Where(w => w.CertifiedUntil >= today);
+        }
+
         var total = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderBy(w => w.Name)

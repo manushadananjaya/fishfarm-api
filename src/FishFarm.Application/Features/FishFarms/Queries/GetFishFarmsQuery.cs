@@ -5,7 +5,13 @@ using MediatR;
 
 namespace FishFarm.Application.Features.FishFarms.Queries;
 
-public sealed record GetFishFarmsQuery(int PageNumber = 1, int PageSize = 10)
+public sealed record GetFishFarmsQuery(
+    int     PageNumber = 1,
+    int     PageSize   = 10,
+    string? Search     = null,
+    bool?   HasBarge   = null,
+    int?    MinCages   = null,
+    int?    MaxCages   = null)
     : IRequest<PaginatedResult<FishFarmSummaryDto>>;
 
 public sealed class GetFishFarmsQueryHandler
@@ -22,6 +28,10 @@ public sealed class GetFishFarmsQueryHandler
         var (items, total) = await _uow.FishFarms.GetPagedAsync(
             request.PageNumber,
             request.PageSize,
+            request.Search,
+            request.HasBarge,
+            request.MinCages,
+            request.MaxCages,
             cancellationToken);
 
         var dtos = items.Select(p => new FishFarmSummaryDto

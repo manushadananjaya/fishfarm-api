@@ -2,6 +2,7 @@ using FishFarm.Application.Common.Models;
 using FishFarm.Application.Features.Workers.Commands;
 using FishFarm.Application.Features.Workers.DTOs;
 using FishFarm.Application.Features.Workers.Queries;
+using FishFarm.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,31 +17,31 @@ public sealed class WorkersController : ControllerBase
 
     public WorkersController(IMediator mediator) => _mediator = mediator;
 
-    /// <summary>Get paginated active workers for a specific fish farm.</summary>
-    /// <remarks>
-    /// Design decisions:
-    /// - Filtering by ?position= / ?certifiedOnly=true / ?search= deferred (#6):
-    ///   No filter params are in the spec; adding dead API surface before frontend
-    ///   confirms requirements is premature. Planned for next iteration.
-    /// - Soft-deleted farms return 404 not 410 (#8): the global query filter makes
-    ///   deleted records invisible; 404 is semantically correct here — the resource
-    ///   is not accessible. Exposing 410 would require tracking deleted IDs separately
-    ///   and leak internal soft-delete state to consumers.
-    /// </remarks>
+    /// <summary>
+    /// Get paginated, filterable active workers for a specific fish farm.
+    /// All filter parameters are optional.
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResult<WorkerDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetAll(
         Guid fishFarmId,
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize   = 20,
+        [FromQuery] int             pageNumber   = 1,
+        [FromQuery] int             pageSize     = 20,
+        [FromQuery] string?         search       = null,
+        [FromQuery] WorkerPosition? position     = null,
+        [FromQuery] bool?           certExpired  = null,
         CancellationToken cancellationToken = default)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize   < 1) pageSize   = 1;
         if (pageSize   > 100) pageSize = 100;
+
         var result = await _mediator.Send(
-            new GetWorkersByFarmQuery(fishFarmId, pageNumber, pageSize), cancellationToken);
+            new GetWorkersByFarmQuery(fishFarmId, pageNumber, pageSize, search, position, certExpired),
+            cancellationToken);
+
         return Ok(result);
     }
 
@@ -91,6 +92,7 @@ public sealed class WorkersController : ControllerBase
     [HttpPatch("{workerId:guid}/picture")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdatePicture(
         Guid fishFarmId,
@@ -101,6 +103,21 @@ public sealed class WorkersController : ControllerBase
         var url = await _mediator.Send(
             new UpdateWorkerPictureCommand(fishFarmId, workerId, request), cancellationToken);
         return Ok(new { pictureUrl = url });
+    }
+
+    /// <summary>
+    /// Delete the worker's profile picture. Idempotent — returns 204 even if there was no picture.
+    /// </summary>
+    [HttpDelete("{workerId:guid}/picture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePicture(
+        Guid fishFarmId,
+        Guid workerId,
+        CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new DeleteWorkerPictureCommand(fishFarmId, workerId), cancellationToken);
+        return NoContent();
     }
 
     /// <summary>Soft-delete a worker from a fish farm.</summary>

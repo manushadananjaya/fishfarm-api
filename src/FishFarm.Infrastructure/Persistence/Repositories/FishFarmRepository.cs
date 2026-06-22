@@ -12,9 +12,27 @@ public sealed class FishFarmRepository
         GetPagedAsync(
             int pageNumber,
             int pageSize,
+            string? search    = null,
+            bool?   hasBarge  = null,
+            int?    minCages  = null,
+            int?    maxCages  = null,
             CancellationToken cancellationToken = default)
     {
         var query = DbSet.AsNoTracking();
+
+        // All filters are applied before CountAsync so TotalCount always reflects
+        // the filtered result set, not the full table size.
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(f => f.Name.Contains(search));
+
+        if (hasBarge.HasValue)
+            query = query.Where(f => f.HasBarge == hasBarge.Value);
+
+        if (minCages.HasValue)
+            query = query.Where(f => f.NumberOfCages >= minCages.Value);
+
+        if (maxCages.HasValue)
+            query = query.Where(f => f.NumberOfCages <= maxCages.Value);
 
         var total = await query.CountAsync(cancellationToken);
 

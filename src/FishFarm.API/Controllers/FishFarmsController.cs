@@ -16,24 +16,30 @@ public sealed class FishFarmsController : ControllerBase
 
     public FishFarmsController(IMediator mediator) => _mediator = mediator;
 
-    /// <summary>Get a paginated list of all fish farms.</summary>
-    /// <remarks>
-    /// Design decision (#7): The list returns FishFarmSummaryDto (includes WorkerCount).
-    /// Full workers are available via GET /api/fishfarms/{id}. A bulk ?includeWorkers=true
-    /// projection is deferred until the frontend confirms it needs all farms+workers in one
-    /// call — premature optimisation vs. added complexity.
-    /// </remarks>
+    /// <summary>
+    /// Get a paginated, filterable list of all fish farms.
+    /// All filter parameters are optional; omitting them returns the full list.
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResult<FishFarmSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetAll(
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize   = 10,
+        [FromQuery] int     pageNumber = 1,
+        [FromQuery] int     pageSize   = 10,
+        [FromQuery] string? search     = null,
+        [FromQuery] bool?   hasBarge   = null,
+        [FromQuery] int?    minCages   = null,
+        [FromQuery] int?    maxCages   = null,
         CancellationToken cancellationToken = default)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize   < 1) pageSize   = 1;
         if (pageSize   > 50) pageSize  = 50;
-        var result = await _mediator.Send(new GetFishFarmsQuery(pageNumber, pageSize), cancellationToken);
+
+        var result = await _mediator.Send(
+            new GetFishFarmsQuery(pageNumber, pageSize, search, hasBarge, minCages, maxCages),
+            cancellationToken);
+
         return Ok(result);
     }
 
@@ -78,6 +84,7 @@ public sealed class FishFarmsController : ControllerBase
     [HttpPatch("{id:guid}/picture")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdatePicture(
         Guid id,
@@ -86,6 +93,18 @@ public sealed class FishFarmsController : ControllerBase
     {
         var url = await _mediator.Send(new UpdateFishFarmPictureCommand(id, request), cancellationToken);
         return Ok(new { pictureUrl = url });
+    }
+
+    /// <summary>
+    /// Delete the fish farm picture. Idempotent — returns 204 even if there was no picture.
+    /// </summary>
+    [HttpDelete("{id:guid}/picture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePicture(Guid id, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new DeleteFishFarmPictureCommand(id), cancellationToken);
+        return NoContent();
     }
 
     /// <summary>Soft-delete a fish farm and all its workers.</summary>

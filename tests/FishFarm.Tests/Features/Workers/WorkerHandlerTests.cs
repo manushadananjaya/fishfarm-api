@@ -51,7 +51,10 @@ public sealed class WorkerHandlerTests
             .Setup(r => r.GetByIdAsync(farmId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(farm);
         _workerRepoMock
-            .Setup(r => r.GetPagedByFishFarmAsync(farmId, 1, 20, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPagedByFishFarmAsync(
+                farmId, It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string?>(), It.IsAny<WorkerPosition?>(), It.IsAny<bool?>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync((
                 (IReadOnlyList<Domain.Entities.Worker>) new List<Domain.Entities.Worker> { worker1, worker2 },
                 2));
@@ -99,7 +102,10 @@ public sealed class WorkerHandlerTests
             .Setup(r => r.GetByIdAsync(farmId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(TestDataFactory.CreateFishFarmEntity(farmId));
         _workerRepoMock
-            .Setup(r => r.GetPagedByFishFarmAsync(farmId, 1, 20, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPagedByFishFarmAsync(
+                farmId, It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string?>(), It.IsAny<WorkerPosition?>(), It.IsAny<bool?>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync((
                 (IReadOnlyList<Domain.Entities.Worker>) new List<Domain.Entities.Worker>(),
                 0));
