@@ -41,6 +41,7 @@ public sealed class GetFishFarmsQueryHandler
         var dtos = items.Select(p => new FishFarmSummaryDto
         {
             Id            = p.Farm.Id,
+            FarmCode      = $"FF-{p.Farm.FarmNumber:D5}",
             Name          = p.Farm.Name,
             GpsLatitude   = p.Farm.GpsLatitude,
             GpsLongitude  = p.Farm.GpsLongitude,

@@ -1,6 +1,7 @@
 using FishFarm.Domain.Entities;
 using FishFarm.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace FishFarm.Infrastructure.Persistence.Configurations;
@@ -12,6 +13,18 @@ public sealed class WorkerConfiguration : IEntityTypeConfiguration<Worker>
         builder.ToTable("Workers");
 
         builder.HasKey(w => w.Id);
+
+        // WorkerNumber is a non-PK IDENTITY column — SQL Server generates it automatically.
+        // SetAfterSaveBehavior(Ignore) prevents EF Core from including this column in
+        // UPDATE statements (SQL Server error 8102 otherwise).
+        builder.Property(w => w.WorkerNumber)
+            .ValueGeneratedOnAdd()
+            .UseIdentityColumn(seed: 1, increment: 1)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
+        builder.HasIndex(w => w.WorkerNumber)
+            .IsUnique()
+            .HasDatabaseName("UIX_Workers_WorkerNumber");
 
         builder.Property(w => w.Name)
             .IsRequired()

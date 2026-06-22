@@ -85,6 +85,7 @@ GET /api/fishfarms?search=ocean&sortBy=numberOfCages&sortDir=desc
   "items": [
     {
       "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "farmCode": "FF-00001",
       "name": "Ocean Bay Farm",
       "gpsLatitude": 7.2906,
       "gpsLongitude": 80.6337,
@@ -168,6 +169,7 @@ GET /api/fishfarms/{farmId}/workers?search=doe&certExpired=true
   "items": [
     {
       "id": "d1a2b3c4-5e6f-7890-abcd-ef1234567890",
+      "workerCode": "WK-00001",
       "fishFarmId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       "name": "John Fisher",
       "age": 34,
@@ -281,7 +283,8 @@ interface PaginatedResult<T> {
 
 // ── Farm summary (list view) ──────────────────────────────────────────────
 interface FishFarmSummaryDto {
-  id: string;
+  id: string;           // UUID — use for API routing
+  farmCode: string;     // Human-readable display ID, e.g. "FF-00001"
   name: string;
   gpsLatitude: number;
   gpsLongitude: number;
@@ -289,15 +292,21 @@ interface FishFarmSummaryDto {
   hasBarge: boolean;
   pictureUrl: string | null;
   workerCount: number;
-  createdAt: string;   // ISO 8601 UTC
-  updatedAt: string;   // ISO 8601 UTC
+  createdAt: string;    // ISO 8601 UTC
+  updatedAt: string;    // ISO 8601 UTC
+}
+
+// ── Farm detail (single farm view) ───────────────────────────────────────
+interface FishFarmDto extends Omit<FishFarmSummaryDto, 'workerCount'> {
+  workers: WorkerDto[];
 }
 
 // ── Worker DTO ────────────────────────────────────────────────────────────
 type WorkerPosition = 'CEO' | 'Worker';
 
 interface WorkerDto {
-  id: string;
+  id: string;           // UUID — use for API routing
+  workerCode: string;   // Human-readable display ID, e.g. "WK-00001"
   fishFarmId: string;
   name: string;
   age: number;

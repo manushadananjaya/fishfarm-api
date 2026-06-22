@@ -27,6 +27,7 @@ public sealed class GetFishFarmByIdQueryHandler
         return new FishFarmDto
         {
             Id            = farm.Id,
+            FarmCode      = $"FF-{farm.FarmNumber:D5}",
             Name          = farm.Name,
             GpsLatitude   = farm.GpsLatitude,
             GpsLongitude  = farm.GpsLongitude,
@@ -39,6 +40,7 @@ public sealed class GetFishFarmByIdQueryHandler
                 .Select(w => new WorkerDto
                 {
                     Id             = w.Id,
+                    WorkerCode     = $"WK-{w.WorkerNumber:D5}",
                     FishFarmId     = w.FishFarmId,
                     Name           = w.Name,
                     Age            = w.Age,

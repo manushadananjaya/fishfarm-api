@@ -7,6 +7,13 @@ namespace FishFarm.Domain.Entities;
 /// </summary>
 public sealed class FishFarm : BaseAuditableEntity
 {
+    /// <summary>
+    /// DB-generated sequential number used as the human-readable display identifier.
+    /// Populated by SQL Server IDENTITY after the first SaveChanges.
+    /// Do not set this manually — use the formatted <c>FarmCode</c> ("FF-00001") in DTOs.
+    /// </summary>
+    public int FarmNumber { get; private set; }
+
     public string Name { get; set; } = default!;
 
     public decimal GpsLatitude { get; set; }

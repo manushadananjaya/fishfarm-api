@@ -27,6 +27,7 @@ public sealed class GetWorkerByIdQueryHandler
         return new WorkerDto
         {
             Id             = worker.Id,
+            WorkerCode     = $"WK-{worker.WorkerNumber:D5}",
             FishFarmId     = worker.FishFarmId,
             Name           = worker.Name,
             Age            = worker.Age,
