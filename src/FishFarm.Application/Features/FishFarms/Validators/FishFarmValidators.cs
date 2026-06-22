@@ -92,6 +92,12 @@ public sealed class UpdateFishFarmPictureCommandValidator
 
 public sealed class GetFishFarmsQueryValidator : AbstractValidator<GetFishFarmsQuery>
 {
+    private static readonly HashSet<string> AllowedSortFields =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "name", "createdAt", "updatedAt", "numberOfCages", "workerCount"
+        };
+
     public GetFishFarmsQueryValidator()
     {
         When(x => x.Search is not null, () =>
@@ -113,5 +119,14 @@ public sealed class GetFishFarmsQueryValidator : AbstractValidator<GetFishFarmsQ
             RuleFor(x => x.MinCages!.Value)
                 .LessThanOrEqualTo(x => x.MaxCages!.Value)
                 .WithMessage("MinCages must not be greater than MaxCages."));
+
+        RuleFor(x => x.SortBy)
+            .Must(v => AllowedSortFields.Contains(v))
+            .WithMessage("SortBy must be one of: name, createdAt, updatedAt, numberOfCages, workerCount.");
+
+        RuleFor(x => x.SortDir)
+            .Must(v => v.Equals("asc", StringComparison.OrdinalIgnoreCase) ||
+                       v.Equals("desc", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("SortDir must be 'asc' or 'desc'.");
     }
 }

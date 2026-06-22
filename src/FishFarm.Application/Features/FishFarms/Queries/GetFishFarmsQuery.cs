@@ -11,7 +11,9 @@ public sealed record GetFishFarmsQuery(
     string? Search     = null,
     bool?   HasBarge   = null,
     int?    MinCages   = null,
-    int?    MaxCages   = null)
+    int?    MaxCages   = null,
+    string  SortBy     = "name",
+    string  SortDir    = "asc")
     : IRequest<PaginatedResult<FishFarmSummaryDto>>;
 
 public sealed class GetFishFarmsQueryHandler
@@ -32,6 +34,8 @@ public sealed class GetFishFarmsQueryHandler
             request.HasBarge,
             request.MinCages,
             request.MaxCages,
+            request.SortBy,
+            request.SortDir,
             cancellationToken);
 
         var dtos = items.Select(p => new FishFarmSummaryDto
@@ -43,7 +47,9 @@ public sealed class GetFishFarmsQueryHandler
             NumberOfCages = p.Farm.NumberOfCages,
             HasBarge      = p.Farm.HasBarge,
             PictureUrl    = p.Farm.PictureUrl,
-            WorkerCount   = p.WorkerCount
+            WorkerCount   = p.WorkerCount,
+            CreatedAt     = p.Farm.CreatedAt,
+            UpdatedAt     = p.Farm.UpdatedAt
         }).ToList();
 
         return PaginatedResult<FishFarmSummaryDto>.Create(dtos, total, request.PageNumber, request.PageSize);

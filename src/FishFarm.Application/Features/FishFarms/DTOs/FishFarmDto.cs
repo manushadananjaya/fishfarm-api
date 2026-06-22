@@ -26,4 +26,6 @@ public sealed class FishFarmSummaryDto
     public bool HasBarge { get; init; }
     public string? PictureUrl { get; init; }
     public int WorkerCount { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
 }

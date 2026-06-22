@@ -10,18 +10,19 @@ public sealed class FishFarmRepository
 
     public async Task<(IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)> Items, int TotalCount)>
         GetPagedAsync(
-            int pageNumber,
-            int pageSize,
+            int     pageNumber,
+            int     pageSize,
             string? search    = null,
             bool?   hasBarge  = null,
             int?    minCages  = null,
             int?    maxCages  = null,
+            string  sortBy    = "name",
+            string  sortDir   = "asc",
             CancellationToken cancellationToken = default)
     {
         var query = DbSet.AsNoTracking();
 
-        // All filters are applied before CountAsync so TotalCount always reflects
-        // the filtered result set, not the full table size.
+        // All filters applied before CountAsync — TotalCount reflects the filtered set.
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(f => f.Name.Contains(search));
 
@@ -36,10 +37,22 @@ public sealed class FishFarmRepository
 
         var total = await query.CountAsync(cancellationToken);
 
-        // Project worker count in-database via a correlated COUNT subquery.
-        // This avoids loading all worker rows just to count them.
-        var projected = await query
-            .OrderBy(f => f.Name)
+        // Sorting is applied at the SQL level so Skip/Take pages correctly over
+        // the full sorted dataset, not just the current page.
+        // workerCount uses f.Workers.Count() — EF Core translates to a correlated
+        // COUNT subquery which SQL Server can use in ORDER BY.
+        bool desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+
+        IOrderedQueryable<Domain.Entities.FishFarm> ordered = sortBy.ToLowerInvariant() switch
+        {
+            "createdat"     => desc ? query.OrderByDescending(f => f.CreatedAt)      : query.OrderBy(f => f.CreatedAt),
+            "updatedat"     => desc ? query.OrderByDescending(f => f.UpdatedAt)      : query.OrderBy(f => f.UpdatedAt),
+            "numberofcages" => desc ? query.OrderByDescending(f => f.NumberOfCages)  : query.OrderBy(f => f.NumberOfCages),
+            "workercount"   => desc ? query.OrderByDescending(f => f.Workers.Count()): query.OrderBy(f => f.Workers.Count()),
+            _               => desc ? query.OrderByDescending(f => f.Name)           : query.OrderBy(f => f.Name),
+        };
+
+        var projected = await ordered
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(f => new

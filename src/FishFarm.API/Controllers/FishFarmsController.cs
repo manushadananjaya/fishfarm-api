@@ -30,6 +30,8 @@ public sealed class FishFarmsController : ControllerBase
         [FromQuery] bool?   hasBarge   = null,
         [FromQuery] int?    minCages   = null,
         [FromQuery] int?    maxCages   = null,
+        [FromQuery] string  sortBy     = "name",
+        [FromQuery] string  sortDir    = "asc",
         CancellationToken cancellationToken = default)
     {
         if (pageNumber < 1) pageNumber = 1;
@@ -37,7 +39,7 @@ public sealed class FishFarmsController : ControllerBase
         if (pageSize   > 50) pageSize  = 50;
 
         var result = await _mediator.Send(
-            new GetFishFarmsQuery(pageNumber, pageSize, search, hasBarge, minCages, maxCages),
+            new GetFishFarmsQuery(pageNumber, pageSize, search, hasBarge, minCages, maxCages, sortBy, sortDir),
             cancellationToken);
 
         return Ok(result);
