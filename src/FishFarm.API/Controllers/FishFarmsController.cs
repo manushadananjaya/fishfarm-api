@@ -17,6 +17,35 @@ public sealed class FishFarmsController : ControllerBase
     public FishFarmsController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
+    /// Get lightweight GPS markers for all active farms — optimised for map display.
+    /// </summary>
+    /// <remarks>
+    /// Returns only <c>id</c>, <c>farmCode</c>, <c>name</c>, <c>gpsLatitude</c>, and
+    /// <c>gpsLongitude</c>. Workers, pictures, cage counts and audit fields are deliberately
+    /// excluded to keep the payload small.<br/><br/>
+    /// <b>Bounding-box filtering</b> — supply all four or any subset of the bbox parameters
+    /// to restrict results to a geographic region. All filtering happens in SQL; the full
+    /// farm table is never loaded into memory.<br/><br/>
+    /// Example: <c>GET /api/fishfarms/map?north=7.9&amp;south=5.9&amp;east=82.0&amp;west=79.5</c>
+    /// </remarks>
+    [HttpGet("map")]
+    [ProducesResponseType(typeof(IReadOnlyList<FishFarmMapDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<FishFarmMapDto>>> GetMap(
+        [FromQuery] decimal? north = null,
+        [FromQuery] decimal? south = null,
+        [FromQuery] decimal? east  = null,
+        [FromQuery] decimal? west  = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(
+            new GetFishFarmsMapQuery(north, south, east, west),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get a paginated, filterable list of all fish farms.
     /// All filter parameters are optional; omitting them returns the full list.
     /// </summary>
