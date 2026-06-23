@@ -5,7 +5,7 @@ namespace FishFarm.Application.Features.FishFarms.DTOs;
 public sealed class FishFarmDto
 {
     public Guid Id { get; init; }
-    /// <summary>Human-readable display ID, e.g. "FF-00001".</summary>
+
     public string FarmCode { get; init; } = default!;
     public string Name { get; init; } = default!;
     public decimal GpsLatitude { get; init; }
@@ -15,14 +15,12 @@ public sealed class FishFarmDto
     public string? PictureUrl { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
-    /// <summary>Active worker assignments at this farm, each with full person details.</summary>
     public IReadOnlyList<FarmWorkerDto> Workers { get; init; } = [];
 }
 
 public sealed class FishFarmSummaryDto
 {
     public Guid Id { get; init; }
-    /// <summary>Human-readable display ID, e.g. "FF-00001".</summary>
     public string FarmCode { get; init; } = default!;
     public string Name { get; init; } = default!;
     public decimal GpsLatitude { get; init; }

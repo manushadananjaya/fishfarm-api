@@ -28,8 +28,7 @@ public sealed class CreateFishFarmCommandValidator : AbstractValidator<CreateFis
         RuleFor(x => x.Request.NumberOfCages)
             .GreaterThan(0).WithMessage("NumberOfCages must be greater than 0.");
 
-        // Picture is optional on create — farms can be registered without one and a picture
-        // uploaded separately via PATCH /picture. See FishFarmRequests.cs for rationale.
+      
         When(x => x.Request.Picture is not null, () =>
         {
             RuleFor(x => x.Request.Picture!.Length)

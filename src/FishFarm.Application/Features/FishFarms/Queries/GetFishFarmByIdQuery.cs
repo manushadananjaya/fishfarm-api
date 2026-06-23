@@ -35,7 +35,6 @@ public sealed class GetFishFarmByIdQueryHandler
             PictureUrl    = farm.PictureUrl,
             CreatedAt     = farm.CreatedAt,
             UpdatedAt     = farm.UpdatedAt,
-            // Global query filter on FarmWorker already excludes soft-deleted assignments.
             Workers       = farm.FarmWorkers
                 .Select(fw => new FarmWorkerDto
                 {

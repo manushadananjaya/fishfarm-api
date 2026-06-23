@@ -5,11 +5,6 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace FishFarm.Infrastructure.Persistence.Interceptors;
 
-/// <summary>
-/// SaveChanges interceptor that:
-/// 1. Converts hard deletes of ISoftDeletable entities into soft deletes.
-/// 2. Automatically stamps CreatedAt / UpdatedAt on every save.
-/// </summary>
 public sealed class AuditAndSoftDeleteInterceptor : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(
@@ -49,7 +44,6 @@ public sealed class AuditAndSoftDeleteInterceptor : SaveChangesInterceptor
                     break;
 
                 case EntityState.Deleted when entry.Entity is ISoftDeletable:
-                    // Convert hard delete → soft delete
                     entry.State = EntityState.Modified;
                     entry.Entity.IsDeleted = true;
                     entry.Entity.DeletedAt = now;

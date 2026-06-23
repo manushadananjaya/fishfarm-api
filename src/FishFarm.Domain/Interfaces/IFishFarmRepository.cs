@@ -2,16 +2,8 @@ using FishFarmEntity = FishFarm.Domain.Entities.FishFarm;
 
 namespace FishFarm.Domain.Interfaces;
 
-/// <summary>
-/// Fish farm-specific repository with optimised query methods.
-/// </summary>
 public interface IFishFarmRepository : IRepository<FishFarmEntity>
 {
-    /// <summary>
-    /// Returns farm entities with a pre-computed active <c>WorkerCount</c> for map display.
-    /// WorkerCount is projected as a SQL COUNT subquery — FarmWorkers are never loaded into memory.
-    /// Optionally filtered to a geographic bounding box.
-    /// </summary>
     Task<IReadOnlyList<(FishFarmEntity Farm, int WorkerCount)>> GetMapAsync(
         decimal? north = null,
         decimal? south = null,

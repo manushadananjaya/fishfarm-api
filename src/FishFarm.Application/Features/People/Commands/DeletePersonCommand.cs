@@ -26,7 +26,6 @@ public sealed class DeletePersonCommandHandler : IRequestHandler<DeletePersonCom
 
         var picturePublicId = person.PicturePublicId;
 
-        // Soft-delete all farm assignments so the person is removed from every farm.
         foreach (var assignment in person.FarmWorkers)
             _uow.FarmWorkers.Delete(assignment);
 
@@ -34,7 +33,6 @@ public sealed class DeletePersonCommandHandler : IRequestHandler<DeletePersonCom
 
         await _uow.SaveChangesAsync(cancellationToken);
 
-        // CDN cleanup after DB commit — best-effort.
         await _cloudinary.DeleteImageAsync(picturePublicId, cancellationToken);
     }
 }

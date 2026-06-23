@@ -24,10 +24,8 @@ public sealed class FarmWorkerConfiguration : IEntityTypeConfiguration<FarmWorke
         builder.Property(fw => fw.DeletedAt);
         builder.Property(fw => fw.DeletedBy).HasMaxLength(256);
 
-        // Global query filter — all queries exclude soft-deleted assignments.
         builder.HasQueryFilter(fw => !fw.IsDeleted);
 
-        // ── Relationships ─────────────────────────────────────────────────────
         builder.HasOne(fw => fw.FishFarm)
             .WithMany(f => f.FarmWorkers)
             .HasForeignKey(fw => fw.FishFarmId)
@@ -38,21 +36,17 @@ public sealed class FarmWorkerConfiguration : IEntityTypeConfiguration<FarmWorke
             .HasForeignKey(fw => fw.PersonId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // ── Indexes ───────────────────────────────────────────────────────────
         builder.HasIndex(fw => fw.FishFarmId)
             .HasDatabaseName("IX_FarmWorkers_FishFarmId");
 
         builder.HasIndex(fw => fw.PersonId)
             .HasDatabaseName("IX_FarmWorkers_PersonId");
 
-        // A person can only have one active assignment per farm.
         builder.HasIndex(fw => new { fw.FishFarmId, fw.PersonId })
             .IsUnique()
             .HasFilter("[IsDeleted] = 0")
             .HasDatabaseName("UIX_FarmWorkers_FarmPerson_Active");
 
-        // At most one active CEO per farm — enforced at application level (HasCeoAsync).
-        // This non-unique index just speeds up those checks.
         builder.HasIndex(fw => new { fw.FishFarmId, fw.Position })
             .HasDatabaseName("IX_FarmWorkers_FarmPosition");
     }

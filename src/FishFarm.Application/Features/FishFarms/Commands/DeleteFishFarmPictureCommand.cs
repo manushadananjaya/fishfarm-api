@@ -34,10 +34,10 @@ public sealed class DeleteFishFarmPictureCommandHandler : IRequestHandler<Delete
 
         _uow.FishFarms.Update(farm);
 
-        // DB commit first — CDN asset is unreachable once the URL is removed from the record.
+
         await _uow.SaveChangesAsync(cancellationToken);
 
-        // Best-effort CDN cleanup after commit.
+        
         await _cloudinary.DeleteImageAsync(publicId, cancellationToken);
     }
 }

@@ -45,7 +45,5 @@ public sealed class FishFarmConfiguration : IEntityTypeConfiguration<Domain.Enti
 
         builder.HasQueryFilter(f => !f.IsDeleted);
 
-        // FarmWorkers relationship is configured in FarmWorkerConfiguration via
-        // .WithMany(f => f.FarmWorkers) — no need to configure it here as well.
     }
 }

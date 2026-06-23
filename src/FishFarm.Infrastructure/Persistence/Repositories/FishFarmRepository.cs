@@ -15,7 +15,6 @@ public sealed class FishFarmRepository
         decimal? west  = null,
         CancellationToken cancellationToken = default)
     {
-        // WorkerCount is a SQL COUNT subquery — FarmWorkers rows are never loaded into memory.
         IQueryable<Domain.Entities.FishFarm> query = DbSet.AsNoTracking();
 
         if (north.HasValue) query = query.Where(f => f.GpsLatitude  <= north.Value);
@@ -57,7 +56,6 @@ public sealed class FishFarmRepository
         if (maxCages.HasValue)
             query = query.Where(f => f.NumberOfCages <= maxCages.Value);
 
-        // Worker count from FarmWorkers (global filter already excludes soft-deleted assignments)
         var projected = query.Select(f => new
         {
             Farm        = f,

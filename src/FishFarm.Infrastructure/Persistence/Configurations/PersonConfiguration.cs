@@ -38,7 +38,6 @@ public sealed class PersonConfiguration : IEntityTypeConfiguration<Person>
 
         builder.HasQueryFilter(p => !p.IsDeleted);
 
-        // Email must be unique across active (non-deleted) persons.
         builder.HasIndex(p => p.Email)
             .IsUnique()
             .HasFilter("[IsDeleted] = 0")

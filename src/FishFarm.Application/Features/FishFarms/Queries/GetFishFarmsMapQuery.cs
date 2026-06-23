@@ -5,16 +5,7 @@ using MediatR;
 
 namespace FishFarm.Application.Features.FishFarms.Queries;
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Query record
-// ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>
-/// Returns full farm details (GPS, properties, active workers) for all active farms.
-/// Optionally constrained to a geographic bounding box.
-/// The response is designed so the frontend can render both a map marker AND a
-/// farm detail panel without a second round-trip.
-/// </summary>
 public sealed record GetFishFarmsMapQuery(
     decimal? North = null,
     decimal? South = null,
@@ -22,9 +13,7 @@ public sealed record GetFishFarmsMapQuery(
     decimal? West  = null)
     : IRequest<IReadOnlyList<FishFarmMapDto>>;
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Handler
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 public sealed class GetFishFarmsMapQueryHandler
     : IRequestHandler<GetFishFarmsMapQuery, IReadOnlyList<FishFarmMapDto>>
@@ -37,7 +26,7 @@ public sealed class GetFishFarmsMapQueryHandler
         GetFishFarmsMapQuery request,
         CancellationToken cancellationToken)
     {
-        var farms = await _uow.FishFarms.GetMapAsync(   // returns IReadOnlyList<(Farm, WorkerCount)>
+        var farms = await _uow.FishFarms.GetMapAsync(   
             request.North,
             request.South,
             request.East,
@@ -56,18 +45,15 @@ public sealed class GetFishFarmsMapQueryHandler
             PictureUrl    = t.Farm.PictureUrl,
             CreatedAt     = t.Farm.CreatedAt,
             UpdatedAt     = t.Farm.UpdatedAt,
-            WorkerCount   = t.WorkerCount   // already computed as a SQL COUNT subquery
+            WorkerCount   = t.WorkerCount   
         }).ToList();
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Validator — runs automatically via ValidationBehaviour pipeline
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 public sealed class GetFishFarmsMapQueryValidator : AbstractValidator<GetFishFarmsMapQuery>
 {
-    // WGS-84 valid ranges
     private const decimal MinLat  = -90m;
     private const decimal MaxLat  =  90m;
     private const decimal MinLon  = -180m;
@@ -95,7 +81,7 @@ public sealed class GetFishFarmsMapQueryValidator : AbstractValidator<GetFishFar
                 .InclusiveBetween(MinLon, MaxLon)
                 .WithMessage($"West must be a valid longitude between {MinLon} and {MaxLon}."));
 
-        // Bounding box sanity: north must be above south, east must be right of west.
+      
         When(x => x.North.HasValue && x.South.HasValue, () =>
             RuleFor(x => x.North!.Value)
                 .GreaterThan(x => x.South!.Value)

@@ -28,10 +28,10 @@ public sealed class UpdateFishFarmPictureCommandHandler
         var farm = await _uow.FishFarms.GetByIdAsync(command.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), command.Id);
 
-        // Delete old image from Cloudinary if it exists
+     
         await _cloudinary.DeleteImageAsync(farm.PicturePublicId, cancellationToken);
 
-        // Upload new image
+   
         var (url, publicId) = await _cloudinary.UploadImageAsync(
             command.Request.Picture, "fishfarms", cancellationToken);
 
@@ -46,8 +46,7 @@ public sealed class UpdateFishFarmPictureCommandHandler
         }
         catch
         {
-            // DB save failed — clean up the newly uploaded Cloudinary asset.
-            // Note: the old image is already gone at this point; that is an accepted trade-off.
+            
             await _cloudinary.DeleteImageAsync(publicId, CancellationToken.None);
             throw;
         }

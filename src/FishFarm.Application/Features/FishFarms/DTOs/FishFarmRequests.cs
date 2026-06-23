@@ -10,10 +10,7 @@ public sealed class CreateFishFarmRequest
     public int NumberOfCages { get; init; }
     public bool HasBarge { get; init; }
 
-    // Design decision (#4): Picture is intentionally optional on creation.
-    // A farm can be registered first, then its picture uploaded via PATCH /picture.
-    // This avoids blocking farm creation on image availability and is consistent
-    // with how worker pictures are handled. The PATCH endpoint always requires a file.
+
     public IFormFile? Picture { get; init; }
 }
 

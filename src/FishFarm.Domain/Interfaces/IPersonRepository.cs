@@ -11,7 +11,6 @@ public interface IPersonRepository : IRepository<Person>
         bool?    certExpired = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Returns the person with their active FarmWorker assignments (and each farm name).</summary>
     Task<Person?> GetByIdWithAssignmentsAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<bool> EmailExistsAsync(

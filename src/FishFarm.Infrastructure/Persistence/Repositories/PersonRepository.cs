@@ -28,7 +28,6 @@ public sealed class PersonRepository : BaseRepository<Person>, IPersonRepository
 
         var total = await query.CountAsync(cancellationToken);
 
-        // Project FarmCount in SQL via a correlated COUNT subquery — avoids loading FarmWorkers into memory.
         var items = await query
             .OrderBy(p => p.Name)
             .Skip((pageNumber - 1) * pageSize)

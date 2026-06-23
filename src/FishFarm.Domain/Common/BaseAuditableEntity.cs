@@ -1,9 +1,6 @@
 namespace FishFarm.Domain.Common;
 
-/// <summary>
-/// Base entity with full audit trail and soft-delete support.
-/// All aggregate roots and entities should inherit from this class.
-/// </summary>
+
 public abstract class BaseAuditableEntity : ISoftDeletable
 {
     public Guid Id { get; init; } = Guid.NewGuid();
