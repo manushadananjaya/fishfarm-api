@@ -4,23 +4,23 @@ using FishFarmEntity = FishFarm.Domain.Entities.FishFarm;
 namespace FishFarm.Domain.Interfaces;
 
 /// <summary>
-/// Fish farm-specific repository with optimized query methods.
+/// Fish farm-specific repository with optimised query methods.
 /// </summary>
 public interface IFishFarmRepository : IRepository<FishFarmEntity>
 {
     /// <summary>
-    /// Returns lightweight GPS projections for map display.
-    /// Applies an optional bounding-box filter entirely in SQL — no full entity load.
-    /// The global soft-delete query filter is active; deleted farms are excluded.
+    /// Returns full farm entities (with FarmWorkers + Person eagerly loaded) for map display.
+    /// The Application layer projects these into <c>FishFarmMapDto</c>.
+    /// Optionally filtered to a geographic bounding box.
     /// </summary>
-    Task<IReadOnlyList<FishFarmMapPoint>> GetMapAsync(
+    Task<IReadOnlyList<FishFarmEntity>> GetMapAsync(
         decimal? north = null,
         decimal? south = null,
         decimal? east  = null,
         decimal? west  = null,
         CancellationToken cancellationToken = default);
 
-    Task<(IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)> Items, int TotalCount)> GetPagedAsync(
+    Task<(IReadOnlyList<(FishFarmEntity Farm, int WorkerCount)> Items, int TotalCount)> GetPagedAsync(
         int     pageNumber,
         int     pageSize,
         string? search    = null,
@@ -31,5 +31,6 @@ public interface IFishFarmRepository : IRepository<FishFarmEntity>
         string  sortDir   = "asc",
         CancellationToken cancellationToken = default);
 
-    Task<FishFarmEntity?> GetWithWorkersAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>Farm with all active FarmWorker assignments and each worker's Person loaded.</summary>
+    Task<FishFarmEntity?> GetWithFarmWorkersAsync(Guid id, CancellationToken cancellationToken = default);
 }

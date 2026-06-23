@@ -1,4 +1,3 @@
-using FishFarm.Domain.Common;
 using FishFarm.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,20 +8,20 @@ public sealed class FishFarmRepository
 {
     public FishFarmRepository(AppDbContext context) : base(context) { }
 
-    public async Task<IReadOnlyList<FishFarmMapPoint>> GetMapAsync(
+    public async Task<IReadOnlyList<Domain.Entities.FishFarm>> GetMapAsync(
         decimal? north = null,
         decimal? south = null,
         decimal? east  = null,
         decimal? west  = null,
         CancellationToken cancellationToken = default)
     {
-        // AsNoTracking: read-only projection, no change-tracking overhead.
-        // The Select() tells EF Core to emit SELECT Id, FarmNumber, Name, GpsLatitude, GpsLongitude
-        // — the full row (picture blob URLs, cage counts, audit columns, etc.) is never fetched.
-        // The global query filter (HasQueryFilter) already excludes soft-deleted farms.
-        var query = DbSet.AsNoTracking();
+        // Explicit IQueryable<> type lets us reassign after Where() without a cast conflict.
+        // Include FarmWorkers only — Person detail is not needed for a worker count.
+        IQueryable<Domain.Entities.FishFarm> query = DbSet
+            .AsNoTracking()
+            .Include(f => f.FarmWorkers);
 
-        // All bbox filters applied in SQL before the projection.
+        // Apply bounding-box filters in SQL — the full table is never loaded into memory.
         if (north.HasValue) query = query.Where(f => f.GpsLatitude  <= north.Value);
         if (south.HasValue) query = query.Where(f => f.GpsLatitude  >= south.Value);
         if (east.HasValue)  query = query.Where(f => f.GpsLongitude <= east.Value);
@@ -30,12 +29,6 @@ public sealed class FishFarmRepository
 
         return await query
             .OrderBy(f => f.Name)
-            .Select(f => new FishFarmMapPoint(
-                f.Id,
-                "FF-" + f.FarmNumber.ToString("D5"),
-                f.Name,
-                f.GpsLatitude,
-                f.GpsLongitude))
             .ToListAsync(cancellationToken);
     }
 
@@ -53,7 +46,6 @@ public sealed class FishFarmRepository
     {
         var query = DbSet.AsNoTracking();
 
-        // All filters applied before CountAsync — TotalCount reflects the filtered set.
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(f => f.Name.Contains(search));
 
@@ -66,45 +58,38 @@ public sealed class FishFarmRepository
         if (maxCages.HasValue)
             query = query.Where(f => f.NumberOfCages <= maxCages.Value);
 
-        var total = await query.CountAsync(cancellationToken);
-
-        // Sorting is applied at the SQL level so Skip/Take pages correctly over
-        // the full sorted dataset, not just the current page.
-        // workerCount uses f.Workers.Count() — EF Core translates to a correlated
-        // COUNT subquery which SQL Server can use in ORDER BY.
-        bool desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
-
-        IOrderedQueryable<Domain.Entities.FishFarm> ordered = sortBy.ToLowerInvariant() switch
+        // Worker count from FarmWorkers (global filter already excludes soft-deleted assignments)
+        var projected = query.Select(f => new
         {
-            "createdat"     => desc ? query.OrderByDescending(f => f.CreatedAt)      : query.OrderBy(f => f.CreatedAt),
-            "updatedat"     => desc ? query.OrderByDescending(f => f.UpdatedAt)      : query.OrderBy(f => f.UpdatedAt),
-            "numberofcages" => desc ? query.OrderByDescending(f => f.NumberOfCages)  : query.OrderBy(f => f.NumberOfCages),
-            "workercount"   => desc ? query.OrderByDescending(f => f.Workers.Count()): query.OrderBy(f => f.Workers.Count()),
-            _               => desc ? query.OrderByDescending(f => f.Name)           : query.OrderBy(f => f.Name),
+            Farm        = f,
+            WorkerCount = f.FarmWorkers.Count()
+        });
+
+        bool asc = sortDir.Equals("asc", StringComparison.OrdinalIgnoreCase);
+        projected = sortBy.ToLowerInvariant() switch
+        {
+            "createdat"     => asc ? projected.OrderBy(x => x.Farm.CreatedAt)     : projected.OrderByDescending(x => x.Farm.CreatedAt),
+            "updatedat"     => asc ? projected.OrderBy(x => x.Farm.UpdatedAt)     : projected.OrderByDescending(x => x.Farm.UpdatedAt),
+            "numberofcages" => asc ? projected.OrderBy(x => x.Farm.NumberOfCages) : projected.OrderByDescending(x => x.Farm.NumberOfCages),
+            "workercount"   => asc ? projected.OrderBy(x => x.WorkerCount)        : projected.OrderByDescending(x => x.WorkerCount),
+            _               => asc ? projected.OrderBy(x => x.Farm.Name)          : projected.OrderByDescending(x => x.Farm.Name),
         };
 
-        var projected = await ordered
+        var total = await projected.CountAsync(cancellationToken);
+        var raw   = await projected
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .Select(f => new
-            {
-                Farm        = f,
-                WorkerCount = f.Workers.Count()   // EF Core translates to SQL COUNT
-            })
             .ToListAsync(cancellationToken);
 
-        var items = projected
-            .Select(p => (p.Farm, p.WorkerCount))
-            .ToList()
-            .AsReadOnly();
-
+        var items = raw.Select(x => (x.Farm, x.WorkerCount)).ToList();
         return (items, total);
     }
 
-    public async Task<Domain.Entities.FishFarm?> GetWithWorkersAsync(
+    public async Task<Domain.Entities.FishFarm?> GetWithFarmWorkersAsync(
         Guid id,
         CancellationToken cancellationToken = default)
         => await DbSet
-            .Include(f => f.Workers)
+            .Include(f => f.FarmWorkers)
+                .ThenInclude(fw => fw.Person)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 }

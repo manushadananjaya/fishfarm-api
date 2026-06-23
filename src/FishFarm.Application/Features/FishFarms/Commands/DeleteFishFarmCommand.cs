@@ -20,31 +20,21 @@ public sealed class DeleteFishFarmCommandHandler : IRequestHandler<DeleteFishFar
 
     public async Task Handle(DeleteFishFarmCommand command, CancellationToken cancellationToken)
     {
-        var farm = await _uow.FishFarms.GetWithWorkersAsync(command.Id, cancellationToken)
+        var farm = await _uow.FishFarms.GetWithFarmWorkersAsync(command.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), command.Id);
 
-        // Collect Cloudinary public IDs before mutating any state.
-        // Global query filter means farm.Workers already excludes soft-deleted entries.
-        var workerPublicIds = farm.Workers
-            .Select(w => w.PicturePublicId)
-            .Where(id => id is not null)
-            .ToList();
-
-        // Apply all soft-deletes in memory (no I/O), then persist atomically in one round-trip.
-        foreach (var worker in farm.Workers)
-            _uow.Workers.Delete(worker);
+        // Soft-delete all active assignments at this farm.
+        // The people themselves are NOT deleted — they may work at other farms.
+        // Global query filter means farm.FarmWorkers already excludes soft-deleted entries.
+        foreach (var assignment in farm.FarmWorkers)
+            _uow.FarmWorkers.Delete(assignment);
 
         _uow.FishFarms.Delete(farm);
 
-        // DB commit is the source of truth — if this fails, no assets are touched.
+        // DB commit is the source of truth — CDN cleanup runs only after success.
         await _uow.SaveChangesAsync(cancellationToken);
 
-        // CDN cleanup is best-effort after the DB is committed. Run in parallel to avoid N+1 latency.
-        // Orphaned assets on partial failure are recoverable via monitoring; they are not user-visible.
-        var cloudinaryTasks = workerPublicIds
-            .Select(id => _cloudinary.DeleteImageAsync(id!, cancellationToken))
-            .Append(_cloudinary.DeleteImageAsync(farm.PicturePublicId, cancellationToken));
-
-        await Task.WhenAll(cloudinaryTasks);
+        // Delete farm picture from Cloudinary (best-effort).
+        await _cloudinary.DeleteImageAsync(farm.PicturePublicId, cancellationToken);
     }
 }

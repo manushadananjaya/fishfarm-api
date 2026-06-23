@@ -1,37 +1,40 @@
 using FishFarm.Application.Common.Models;
-using FishFarm.Application.Features.Workers.Commands;
-using FishFarm.Application.Features.Workers.DTOs;
-using FishFarm.Application.Features.Workers.Queries;
+using FishFarm.Application.Features.FarmWorkers.Commands;
+using FishFarm.Application.Features.FarmWorkers.DTOs;
+using FishFarm.Application.Features.FarmWorkers.Queries;
 using FishFarm.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FishFarm.API.Controllers;
 
+/// <summary>
+/// Manages the assignment of people to a specific fish farm.
+/// A person must first exist in <c>POST /api/people</c> before they can be assigned here.
+/// </summary>
 [ApiController]
 [Route("api/fishfarms/{fishFarmId:guid}/workers")]
 [Produces("application/json")]
 public sealed class WorkersController : ControllerBase
 {
     private readonly IMediator _mediator;
-
     public WorkersController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Get paginated, filterable active workers for a specific fish farm.
-    /// All filter parameters are optional.
+    /// List all active worker assignments for a fish farm.
+    /// Supports search by person name/email, position filter, and certification-expiry filter.
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(PaginatedResult<WorkerDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PaginatedResult<FarmWorkerDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetAll(
         Guid fishFarmId,
-        [FromQuery] int             pageNumber   = 1,
-        [FromQuery] int             pageSize     = 20,
-        [FromQuery] string?         search       = null,
-        [FromQuery] WorkerPosition? position     = null,
-        [FromQuery] bool?           certExpired  = null,
+        [FromQuery] int             pageNumber  = 1,
+        [FromQuery] int             pageSize    = 20,
+        [FromQuery] string?         search      = null,
+        [FromQuery] WorkerPosition? position    = null,
+        [FromQuery] bool?           certExpired = null,
         CancellationToken cancellationToken = default)
     {
         if (pageNumber < 1) pageNumber = 1;
@@ -39,97 +42,80 @@ public sealed class WorkersController : ControllerBase
         if (pageSize   > 100) pageSize = 100;
 
         var result = await _mediator.Send(
-            new GetWorkersByFarmQuery(fishFarmId, pageNumber, pageSize, search, position, certExpired),
+            new GetFarmWorkersQuery(
+                fishFarmId, pageNumber, pageSize, search, position, certExpired),
             cancellationToken);
 
         return Ok(result);
     }
 
-    /// <summary>Get a single worker by id within a fish farm.</summary>
-    [HttpGet("{workerId:guid}")]
-    [ProducesResponseType(typeof(WorkerDto), StatusCodes.Status200OK)]
+    /// <summary>Get a single farm-worker assignment by its ID.</summary>
+    [HttpGet("{farmWorkerId:guid}")]
+    [ProducesResponseType(typeof(FarmWorkerDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(
         Guid fishFarmId,
-        Guid workerId,
+        Guid farmWorkerId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetWorkerByIdQuery(fishFarmId, workerId), cancellationToken);
+        var result = await _mediator.Send(
+            new GetFarmWorkerByIdQuery(fishFarmId, farmWorkerId), cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>Register a new worker for a fish farm.</summary>
+    /// <summary>
+    /// Assign an existing person to this farm with a specific position.
+    /// The person must already exist — create them via <c>POST /api/people</c> first.
+    /// A person can only hold one active assignment per farm.
+    /// </summary>
     [HttpPost]
-    [Consumes("multipart/form-data")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Create(
+    public async Task<IActionResult> Assign(
         Guid fishFarmId,
-        [FromForm] CreateWorkerRequest request,
+        [FromBody] AssignPersonToFarmRequest request,
         CancellationToken cancellationToken)
     {
-        var id = await _mediator.Send(new CreateWorkerCommand(fishFarmId, request), cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { fishFarmId, workerId = id }, new { id });
+        var id = await _mediator.Send(
+            new AssignPersonToFarmCommand(fishFarmId, request), cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { fishFarmId, farmWorkerId = id },
+            new { id });
     }
 
-    /// <summary>Update worker information (does not change picture).</summary>
-    [HttpPut("{workerId:guid}")]
+    /// <summary>Update the position (role) of an existing assignment.</summary>
+    [HttpPut("{farmWorkerId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(
+    public async Task<IActionResult> UpdatePosition(
         Guid fishFarmId,
-        Guid workerId,
-        [FromBody] UpdateWorkerRequest request,
+        Guid farmWorkerId,
+        [FromBody] UpdateFarmWorkerRequest request,
         CancellationToken cancellationToken)
     {
-        await _mediator.Send(new UpdateWorkerCommand(fishFarmId, workerId, request), cancellationToken);
+        await _mediator.Send(
+            new UpdateFarmWorkerCommand(fishFarmId, farmWorkerId, request), cancellationToken);
         return NoContent();
-    }
-
-    /// <summary>Replace the worker's profile picture.</summary>
-    [HttpPatch("{workerId:guid}/picture")]
-    [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdatePicture(
-        Guid fishFarmId,
-        Guid workerId,
-        [FromForm] UpdateWorkerPictureRequest request,
-        CancellationToken cancellationToken)
-    {
-        var url = await _mediator.Send(
-            new UpdateWorkerPictureCommand(fishFarmId, workerId, request), cancellationToken);
-        return Ok(new { pictureUrl = url });
     }
 
     /// <summary>
-    /// Delete the worker's profile picture. Idempotent — returns 204 even if there was no picture.
+    /// Remove a person's assignment from this farm (soft-delete).
+    /// The person's profile and other farm assignments are not affected.
     /// </summary>
-    [HttpDelete("{workerId:guid}/picture")]
+    [HttpDelete("{farmWorkerId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeletePicture(
+    public async Task<IActionResult> Remove(
         Guid fishFarmId,
-        Guid workerId,
+        Guid farmWorkerId,
         CancellationToken cancellationToken)
     {
-        await _mediator.Send(new DeleteWorkerPictureCommand(fishFarmId, workerId), cancellationToken);
-        return NoContent();
-    }
-
-    /// <summary>Soft-delete a worker from a fish farm.</summary>
-    [HttpDelete("{workerId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(
-        Guid fishFarmId,
-        Guid workerId,
-        CancellationToken cancellationToken)
-    {
-        await _mediator.Send(new DeleteWorkerCommand(fishFarmId, workerId), cancellationToken);
+        await _mediator.Send(
+            new RemoveFarmWorkerCommand(fishFarmId, farmWorkerId), cancellationToken);
         return NoContent();
     }
 }

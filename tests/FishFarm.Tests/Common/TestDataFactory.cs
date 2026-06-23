@@ -1,6 +1,8 @@
 using FishFarm.Application.Common.Models;
+using FishFarm.Application.Features.FarmWorkers.DTOs;
 using FishFarm.Application.Features.FishFarms.DTOs;
-using FishFarm.Application.Features.Workers.DTOs;
+using FishFarm.Application.Features.People.DTOs;
+using FishFarm.Domain.Entities;
 using FishFarm.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 using Moq;
@@ -15,10 +17,12 @@ public static class TestDataFactory
 {
     // ── Well-known IDs ─────────────────────────────────────────────────────────
 
-    public static readonly Guid FarmId1   = new("11111111-0000-0000-0000-000000000001");
-    public static readonly Guid FarmId2   = new("22222222-0000-0000-0000-000000000002");
-    public static readonly Guid WorkerId1 = new("aaaa1111-0000-0000-0000-000000000001");
-    public static readonly Guid WorkerId2 = new("aaaa2222-0000-0000-0000-000000000002");
+    public static readonly Guid FarmId1     = new("11111111-0000-0000-0000-000000000001");
+    public static readonly Guid FarmId2     = new("22222222-0000-0000-0000-000000000002");
+    public static readonly Guid PersonId1   = new("aaaa1111-0000-0000-0000-000000000001");
+    public static readonly Guid PersonId2   = new("aaaa2222-0000-0000-0000-000000000002");
+    public static readonly Guid FwId1       = new("bbbb1111-0000-0000-0000-000000000001");
+    public static readonly Guid FwId2       = new("bbbb2222-0000-0000-0000-000000000002");
 
     // ── FishFarm Domain Entities ───────────────────────────────────────────────
 
@@ -44,28 +48,40 @@ public static class TestDataFactory
         UpdatedAt        = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc)
     };
 
-    public static Domain.Entities.Worker CreateWorkerEntity(
+    public static Person CreatePersonEntity(
         Guid? id = null,
-        Guid? fishFarmId = null,
         string name = "John Fisher",
         int age = 30,
         string email = "john.fisher@example.com",
-        WorkerPosition position = WorkerPosition.Worker,
         DateOnly? certifiedUntil = null,
         string? pictureUrl = null,
         string? picturePublicId = null) => new()
     {
-        Id               = id ?? WorkerId1,
-        FishFarmId       = fishFarmId ?? FarmId1,
+        Id               = id ?? PersonId1,
         Name             = name,
         Age              = age,
         Email            = email,
-        Position         = position,
         CertifiedUntil   = certifiedUntil ?? new DateOnly(2026, 12, 31),
         PictureUrl       = pictureUrl,
         PicturePublicId  = picturePublicId,
         CreatedAt        = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),
         UpdatedAt        = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+    };
+
+    public static FarmWorker CreateFarmWorkerEntity(
+        Guid? id = null,
+        Guid? fishFarmId = null,
+        Guid? personId = null,
+        WorkerPosition position = WorkerPosition.Worker,
+        Person? person = null) => new()
+    {
+        Id         = id ?? FwId1,
+        FishFarmId = fishFarmId ?? FarmId1,
+        PersonId   = personId ?? PersonId1,
+        Position   = position,
+        Person     = person ?? CreatePersonEntity(personId),
+        CreatedAt  = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+        UpdatedAt  = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc)
     };
 
     // ── FishFarm DTOs ──────────────────────────────────────────────────────────
@@ -76,6 +92,7 @@ public static class TestDataFactory
         int workerCount = 3) => new()
     {
         Id            = id ?? FarmId1,
+        FarmCode      = "FF-00001",
         Name          = name,
         GpsLatitude   = 60.3913m,
         GpsLongitude  = 5.3221m,
@@ -88,6 +105,7 @@ public static class TestDataFactory
     public static FishFarmDto CreateFishFarmDto(Guid? id = null) => new()
     {
         Id            = id ?? FarmId1,
+        FarmCode      = "FF-00001",
         Name          = "Atlantic Salmon Farm",
         GpsLatitude   = 60.3913m,
         GpsLongitude  = 5.3221m,
@@ -120,41 +138,22 @@ public static class TestDataFactory
         HasBarge      = true
     };
 
-    // ── Worker DTOs ────────────────────────────────────────────────────────────
+    // ── FarmWorker DTOs ────────────────────────────────────────────────────────
 
-    public static WorkerDto CreateWorkerDto(Guid? id = null, Guid? fishFarmId = null) => new()
+    public static FarmWorkerDto CreateFarmWorkerDto(Guid? id = null, Guid? fishFarmId = null) => new()
     {
-        Id             = id ?? WorkerId1,
+        Id             = id ?? FwId1,
         FishFarmId     = fishFarmId ?? FarmId1,
-        Name           = "John Fisher",
-        Age            = 30,
-        Email          = "john.fisher@example.com",
-        Position       = WorkerPosition.Worker.ToString(),
+        PersonId       = PersonId1,
+        PersonCode     = "P-00001",
+        PersonName     = "John Fisher",
+        PersonEmail    = "john.fisher@example.com",
+        PersonAge      = 30,
         CertifiedUntil = new DateOnly(2026, 12, 31),
+        Position       = WorkerPosition.Worker.ToString(),
         PictureUrl     = null,
         CreatedAt      = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),
         UpdatedAt      = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc)
-    };
-
-    // ── Worker Requests ────────────────────────────────────────────────────────
-
-    public static CreateWorkerRequest CreateWorkerRequest(string name = "New Worker") => new()
-    {
-        Name           = name,
-        Age            = 25,
-        Email          = "new.worker@example.com",
-        Position       = WorkerPosition.Worker,
-        CertifiedUntil = new DateOnly(2027, 6, 30),
-        Picture        = null
-    };
-
-    public static UpdateWorkerRequest UpdateWorkerRequest(string name = "Updated Worker") => new()
-    {
-        Name           = name,
-        Age            = 32,
-        Email          = "updated@example.com",
-        Position       = WorkerPosition.Captain,
-        CertifiedUntil = new DateOnly(2028, 1, 1)
     };
 
     // ── PaginatedResult helpers ────────────────────────────────────────────────

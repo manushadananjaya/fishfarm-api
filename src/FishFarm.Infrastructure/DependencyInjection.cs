@@ -18,31 +18,25 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // ── EF Core Interceptor ───────────────────────────────────────────────
         services.AddSingleton<AuditAndSoftDeleteInterceptor>();
 
-        // ── EF Core DbContext ─────────────────────────────────────────────────
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             options
                 .UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
-                    sqlOptions =>
-                    {
-                        sqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 5,
-                            maxRetryDelay: TimeSpan.FromSeconds(10),
-                            errorNumbersToAdd: null);
-                    })
+                    sqlOptions => sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null))
                 .AddInterceptors(sp.GetRequiredService<AuditAndSoftDeleteInterceptor>());
         });
 
-        // ── Repositories ──────────────────────────────────────────────────────
-        services.AddScoped<IFishFarmRepository, FishFarmRepository>();
-        services.AddScoped<IWorkerRepository, WorkerRepository>();
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IFishFarmRepository,   FishFarmRepository>();
+        services.AddScoped<IPersonRepository,     PersonRepository>();
+        services.AddScoped<IFarmWorkerRepository, FarmWorkerRepository>();
+        services.AddScoped<IUnitOfWork,           UnitOfWork>();
 
-        // ── Cloudinary ────────────────────────────────────────────────────────
         var cloudinarySettings = configuration
             .GetSection(CloudinarySettings.SectionName)
             .Get<CloudinarySettings>()

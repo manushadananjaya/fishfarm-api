@@ -17,12 +17,12 @@ public sealed class FishFarmsController : ControllerBase
     public FishFarmsController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Get lightweight GPS markers for all active farms — optimised for map display.
+    /// Get full farm details for all active farms — optimised for map display.
     /// </summary>
     /// <remarks>
-    /// Returns only <c>id</c>, <c>farmCode</c>, <c>name</c>, <c>gpsLatitude</c>, and
-    /// <c>gpsLongitude</c>. Workers, pictures, cage counts and audit fields are deliberately
-    /// excluded to keep the payload small.<br/><br/>
+    /// Returns complete farm data including GPS coordinates, properties, and the full list
+    /// of active worker assignments per farm. The frontend can render both a map marker AND
+    /// a farm detail panel without a second round-trip.<br/><br/>
     /// <b>Bounding-box filtering</b> — supply all four or any subset of the bbox parameters
     /// to restrict results to a geographic region. All filtering happens in SQL; the full
     /// farm table is never loaded into memory.<br/><br/>

@@ -4,13 +4,13 @@ namespace FishFarm.Domain.Entities;
 
 /// <summary>
 /// Aggregate root representing a fish farm.
+/// Workers are no longer embedded here — use the FarmWorkers navigation for assignments.
 /// </summary>
 public sealed class FishFarm : BaseAuditableEntity
 {
     /// <summary>
-    /// DB-generated sequential number used as the human-readable display identifier.
-    /// Populated by SQL Server IDENTITY after the first SaveChanges.
-    /// Do not set this manually — use the formatted <c>FarmCode</c> ("FF-00001") in DTOs.
+    /// DB-generated sequential number. Display as "FF-00001".
+    /// Populated by SQL Server IDENTITY — never set manually.
     /// </summary>
     public int FarmNumber { get; private set; }
 
@@ -28,13 +28,14 @@ public sealed class FishFarm : BaseAuditableEntity
 
     public string? PicturePublicId { get; set; }
 
-    private readonly List<Worker> _workers = [];
+    // ── Navigation ────────────────────────────────────────────────────────────
+    private readonly List<FarmWorker> _farmWorkers = [];
+    public IReadOnlyCollection<FarmWorker> FarmWorkers => _farmWorkers.AsReadOnly();
 
-    public IReadOnlyCollection<Worker> Workers => _workers.AsReadOnly();
-
-    public void AddWorker(Worker worker)
+    /// <summary>Used by tests and seed data to attach an assignment without going through EF.</summary>
+    public void AddFarmWorker(FarmWorker farmWorker)
     {
-        ArgumentNullException.ThrowIfNull(worker);
-        _workers.Add(worker);
+        ArgumentNullException.ThrowIfNull(farmWorker);
+        _farmWorkers.Add(farmWorker);
     }
 }

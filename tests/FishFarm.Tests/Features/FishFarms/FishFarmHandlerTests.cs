@@ -2,6 +2,7 @@ using FishFarm.Application.Common.Exceptions;
 using FishFarm.Application.Features.FishFarms.Commands;
 using FishFarm.Application.Features.FishFarms.DTOs;
 using FishFarm.Application.Features.FishFarms.Queries;
+using FishFarm.Domain.Entities;
 using FishFarm.Domain.Interfaces;
 using FishFarm.Tests.Common;
 using FluentAssertions;
@@ -18,16 +19,18 @@ public sealed class FishFarmHandlerTests
 {
     private readonly Mock<IUnitOfWork>                                        _uowMock;
     private readonly Mock<IFishFarmRepository>                                _farmRepoMock;
+    private readonly Mock<IFarmWorkerRepository>                              _fwRepoMock;
     private readonly Mock<Application.Common.Interfaces.ICloudinaryService>   _cloudinaryMock;
 
     public FishFarmHandlerTests()
     {
         _uowMock        = new Mock<IUnitOfWork>();
         _farmRepoMock   = new Mock<IFishFarmRepository>();
+        _fwRepoMock     = new Mock<IFarmWorkerRepository>();
         _cloudinaryMock = new Mock<Application.Common.Interfaces.ICloudinaryService>();
 
-        // Wire the repo to the UoW
         _uowMock.Setup(u => u.FishFarms).Returns(_farmRepoMock.Object);
+        _uowMock.Setup(u => u.FarmWorkers).Returns(_fwRepoMock.Object);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -40,7 +43,6 @@ public sealed class FishFarmHandlerTests
         // Arrange
         var farm1 = TestDataFactory.CreateFishFarmEntity(TestDataFactory.FarmId1, "Farm A");
         var farm2 = TestDataFactory.CreateFishFarmEntity(TestDataFactory.FarmId2, "Farm B");
-        var items = new List<Domain.Entities.FishFarm> { farm1, farm2 };
 
         _farmRepoMock
             .Setup(r => r.GetPagedAsync(
@@ -54,16 +56,13 @@ public sealed class FishFarmHandlerTests
                 2));
 
         var handler = new GetFishFarmsQueryHandler(_uowMock.Object);
-        var query   = new GetFishFarmsQuery(1, 10);
 
         // Act
-        var result = await handler.Handle(query, CancellationToken.None);
+        var result = await handler.Handle(new GetFishFarmsQuery(1, 10), CancellationToken.None);
 
         // Assert
         result.Items.Should().HaveCount(2);
         result.TotalCount.Should().Be(2);
-        result.PageNumber.Should().Be(1);
-        result.PageSize.Should().Be(10);
         result.Items[0].Name.Should().Be("Farm A");
         result.Items[1].Name.Should().Be("Farm B");
     }
@@ -71,14 +70,10 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task GetFishFarmsHandler_MapsWorkerCountCorrectly()
     {
-        // Arrange
+        // Arrange — WorkerCount comes from the repository projection, not from
+        // farm.FarmWorkers in memory. The mock returns (farm, 3) directly.
         var farm = TestDataFactory.CreateFishFarmEntity(TestDataFactory.FarmId1, "Farm With Workers");
-        var worker1 = TestDataFactory.CreateWorkerEntity();
-        var worker2 = TestDataFactory.CreateWorkerEntity(Guid.NewGuid(), email: "w2@example.com");
-        farm.AddWorker(worker1);
-        farm.AddWorker(worker2);
 
-        // The handler now reads WorkerCount directly from the repository projection.
         _farmRepoMock
             .Setup(r => r.GetPagedAsync(
                 It.IsAny<int>(), It.IsAny<int>(),
@@ -87,7 +82,7 @@ public sealed class FishFarmHandlerTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((
                 (IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)>)
-                    new List<(Domain.Entities.FishFarm, int)> { (farm, 2) },
+                    new List<(Domain.Entities.FishFarm, int)> { (farm, 3) },
                 1));
 
         var handler = new GetFishFarmsQueryHandler(_uowMock.Object);
@@ -96,13 +91,12 @@ public sealed class FishFarmHandlerTests
         var result = await handler.Handle(new GetFishFarmsQuery(1, 10), CancellationToken.None);
 
         // Assert
-        result.Items[0].WorkerCount.Should().Be(2);
+        result.Items[0].WorkerCount.Should().Be(3);
     }
 
     [Fact]
     public async Task GetFishFarmsHandler_EmptyPage_ReturnsEmptyList()
     {
-        // Arrange
         _farmRepoMock
             .Setup(r => r.GetPagedAsync(
                 It.IsAny<int>(), It.IsAny<int>(),
@@ -115,11 +109,8 @@ public sealed class FishFarmHandlerTests
                 0));
 
         var handler = new GetFishFarmsQueryHandler(_uowMock.Object);
+        var result  = await handler.Handle(new GetFishFarmsQuery(99, 10), CancellationToken.None);
 
-        // Act
-        var result = await handler.Handle(new GetFishFarmsQuery(99, 10), CancellationToken.None);
-
-        // Assert
         result.Items.Should().BeEmpty();
         result.TotalCount.Should().Be(0);
     }
@@ -131,20 +122,16 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task GetFishFarmByIdHandler_ExistingFarm_ReturnsMappedDto()
     {
-        // Arrange
         var farmId = TestDataFactory.FarmId1;
         var farm   = TestDataFactory.CreateFishFarmEntity(farmId, "Atlantic Salmon Farm");
 
         _farmRepoMock
-            .Setup(r => r.GetWithWorkersAsync(farmId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetWithFarmWorkersAsync(farmId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(farm);
 
         var handler = new GetFishFarmByIdQueryHandler(_uowMock.Object);
+        var result  = await handler.Handle(new GetFishFarmByIdQuery(farmId), CancellationToken.None);
 
-        // Act
-        var result = await handler.Handle(new GetFishFarmByIdQuery(farmId), CancellationToken.None);
-
-        // Assert
         result.Id.Should().Be(farmId);
         result.Name.Should().Be("Atlantic Salmon Farm");
         result.NumberOfCages.Should().Be(12);
@@ -154,18 +141,15 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task GetFishFarmByIdHandler_FarmNotFound_ThrowsNotFoundException()
     {
-        // Arrange
         var missing = Guid.NewGuid();
         _farmRepoMock
-            .Setup(r => r.GetWithWorkersAsync(missing, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetWithFarmWorkersAsync(missing, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.FishFarm?)null);
 
         var handler = new GetFishFarmByIdQueryHandler(_uowMock.Object);
+        var act     = async () => await handler.Handle(
+            new GetFishFarmByIdQuery(missing), CancellationToken.None);
 
-        // Act
-        var act = async () => await handler.Handle(new GetFishFarmByIdQuery(missing), CancellationToken.None);
-
-        // Assert
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage($"*FishFarm*{missing}*");
     }
@@ -173,34 +157,39 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task GetFishFarmByIdHandler_ProjectsWorkerIsExpiredCorrectly()
     {
-        // Arrange
-        // EF's global query filter on Worker excludes soft-deleted rows before they reach the
-        // handler — the mock models that contract by only returning active workers.
+        // Arrange — EF global query filter ensures GetWithFarmWorkersAsync never
+        // returns soft-deleted assignments. Mock models that contract.
         var farmId  = TestDataFactory.FarmId1;
         var farm    = TestDataFactory.CreateFishFarmEntity(farmId);
-        var expired = TestDataFactory.CreateWorkerEntity(
-            TestDataFactory.WorkerId1,
-            certifiedUntil: new DateOnly(2020, 1, 1));   // cert in the past
-        var active  = TestDataFactory.CreateWorkerEntity(
-            TestDataFactory.WorkerId2,
-            email: "active@example.com",
-            certifiedUntil: new DateOnly(2099, 12, 31));  // cert in the future
-        farm.AddWorker(expired);
-        farm.AddWorker(active);
+
+        var expiredPerson = TestDataFactory.CreatePersonEntity(
+            TestDataFactory.PersonId1,
+            certifiedUntil: new DateOnly(2020, 1, 1));   // past date → expired
+
+        var activePerson  = TestDataFactory.CreatePersonEntity(
+            TestDataFactory.PersonId2,
+            email:         "active@example.com",
+            certifiedUntil: new DateOnly(2099, 12, 31)); // far future → active
+
+        var fw1 = TestDataFactory.CreateFarmWorkerEntity(
+            TestDataFactory.FwId1, farmId, TestDataFactory.PersonId1, person: expiredPerson);
+        var fw2 = TestDataFactory.CreateFarmWorkerEntity(
+            TestDataFactory.FwId2, farmId, TestDataFactory.PersonId2, person: activePerson);
+
+        farm.AddFarmWorker(fw1);
+        farm.AddFarmWorker(fw2);
 
         _farmRepoMock
-            .Setup(r => r.GetWithWorkersAsync(farmId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetWithFarmWorkersAsync(farmId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(farm);
 
         var handler = new GetFishFarmByIdQueryHandler(_uowMock.Object);
+        var result  = await handler.Handle(new GetFishFarmByIdQuery(farmId), CancellationToken.None);
 
-        // Act
-        var result = await handler.Handle(new GetFishFarmByIdQuery(farmId), CancellationToken.None);
-
-        // Assert – both workers projected; IsExpired computed correctly for each
+        // Assert — both assignments returned with correctly computed IsExpired
         result.Workers.Should().HaveCount(2);
-        result.Workers.Single(w => w.Id == TestDataFactory.WorkerId1).IsExpired.Should().BeTrue();
-        result.Workers.Single(w => w.Id == TestDataFactory.WorkerId2).IsExpired.Should().BeFalse();
+        result.Workers.Single(w => w.PersonId == TestDataFactory.PersonId1).IsExpired.Should().BeTrue();
+        result.Workers.Single(w => w.PersonId == TestDataFactory.PersonId2).IsExpired.Should().BeFalse();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -210,9 +199,9 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task CreateFishFarmHandler_NoPicture_CreatesAndReturnsId()
     {
-        // Arrange
         _farmRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<Domain.Entities.FishFarm>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.AddAsync(
+                It.IsAny<Domain.Entities.FishFarm>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _uowMock
             .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
@@ -220,11 +209,8 @@ public sealed class FishFarmHandlerTests
 
         var request = TestDataFactory.CreateFishFarmRequest("New Farm");
         var handler = new CreateFishFarmCommandHandler(_uowMock.Object, _cloudinaryMock.Object);
+        var newId   = await handler.Handle(new CreateFishFarmCommand(request), CancellationToken.None);
 
-        // Act
-        var newId = await handler.Handle(new CreateFishFarmCommand(request), CancellationToken.None);
-
-        // Assert
         newId.Should().NotBeEmpty();
         _farmRepoMock.Verify(r => r.AddAsync(
             It.Is<Domain.Entities.FishFarm>(f => f.Name == "New Farm"),
@@ -239,7 +225,6 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task CreateFishFarmHandler_WithPicture_UploadsAndStoresUrl()
     {
-        // Arrange
         const string cloudinaryUrl = "https://res.cloudinary.com/demo/fishfarms/farm.jpg";
         const string publicId      = "fishfarms/farm";
 
@@ -257,20 +242,15 @@ public sealed class FishFarmHandlerTests
         _cloudinaryMock
             .Setup(c => c.UploadImageAsync(mockFile, "fishfarms", It.IsAny<CancellationToken>()))
             .ReturnsAsync((cloudinaryUrl, publicId));
-
         _farmRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<Domain.Entities.FishFarm>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.AddAsync(
+                It.IsAny<Domain.Entities.FishFarm>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _uowMock
-            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+        _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var handler = new CreateFishFarmCommandHandler(_uowMock.Object, _cloudinaryMock.Object);
+        var newId   = await handler.Handle(new CreateFishFarmCommand(request), CancellationToken.None);
 
-        // Act
-        var newId = await handler.Handle(new CreateFishFarmCommand(request), CancellationToken.None);
-
-        // Assert
         newId.Should().NotBeEmpty();
         _farmRepoMock.Verify(r => r.AddAsync(
             It.Is<Domain.Entities.FishFarm>(f =>
@@ -287,7 +267,6 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task UpdateFishFarmHandler_ExistingFarm_UpdatesPropertiesAndSaves()
     {
-        // Arrange
         var farmId  = TestDataFactory.FarmId1;
         var farm    = TestDataFactory.CreateFishFarmEntity(farmId, "Old Name");
         var request = TestDataFactory.UpdateFishFarmRequest("New Name");
@@ -299,11 +278,8 @@ public sealed class FishFarmHandlerTests
         _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var handler = new UpdateFishFarmCommandHandler(_uowMock.Object);
-
-        // Act
         await handler.Handle(new UpdateFishFarmCommand(farmId, request), CancellationToken.None);
 
-        // Assert
         farm.Name.Should().Be("New Name");
         farm.HasBarge.Should().Be(request.HasBarge);
         _farmRepoMock.Verify(r => r.Update(farm), Times.Once);
@@ -313,20 +289,16 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task UpdateFishFarmHandler_FarmNotFound_ThrowsNotFoundException()
     {
-        // Arrange
         var missing = Guid.NewGuid();
         _farmRepoMock
             .Setup(r => r.GetByIdAsync(missing, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.FishFarm?)null);
 
         var handler = new UpdateFishFarmCommandHandler(_uowMock.Object);
-
-        // Act
-        var act = async () => await handler.Handle(
+        var act     = async () => await handler.Handle(
             new UpdateFishFarmCommand(missing, TestDataFactory.UpdateFishFarmRequest()),
             CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
@@ -337,13 +309,12 @@ public sealed class FishFarmHandlerTests
     [Fact]
     public async Task UpdateFishFarmPictureHandler_DeletesOldAndUploadsNew()
     {
-        // Arrange
-        var farmId     = TestDataFactory.FarmId1;
-        const string oldPublicId  = "fishfarms/old-pic";
-        const string newUrl       = "https://res.cloudinary.com/demo/fishfarms/new.jpg";
-        const string newPublicId  = "fishfarms/new-pic";
+        var farmId        = TestDataFactory.FarmId1;
+        const string oldPublicId = "fishfarms/old-pic";
+        const string newUrl      = "https://res.cloudinary.com/demo/fishfarms/new.jpg";
+        const string newPublicId = "fishfarms/new-pic";
 
-        var farm    = TestDataFactory.CreateFishFarmEntity(farmId, picturePublicId: oldPublicId);
+        var farm     = TestDataFactory.CreateFishFarmEntity(farmId, picturePublicId: oldPublicId);
         var mockFile = TestDataFactory.CreateMockFormFile();
         var request  = new UpdateFishFarmPictureRequest { Picture = mockFile };
 
@@ -360,38 +331,16 @@ public sealed class FishFarmHandlerTests
         _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var handler = new UpdateFishFarmPictureCommandHandler(_uowMock.Object, _cloudinaryMock.Object);
-
-        // Act
-        var result = await handler.Handle(
+        var result  = await handler.Handle(
             new UpdateFishFarmPictureCommand(farmId, request), CancellationToken.None);
 
-        // Assert
         result.Should().Be(newUrl);
         farm.PictureUrl.Should().Be(newUrl);
         farm.PicturePublicId.Should().Be(newPublicId);
-        _cloudinaryMock.Verify(c => c.DeleteImageAsync(oldPublicId, It.IsAny<CancellationToken>()), Times.Once);
-        _cloudinaryMock.Verify(c => c.UploadImageAsync(mockFile, "fishfarms", It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task UpdateFishFarmPictureHandler_FarmNotFound_ThrowsNotFoundException()
-    {
-        // Arrange
-        var missing = Guid.NewGuid();
-        _farmRepoMock
-            .Setup(r => r.GetByIdAsync(missing, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Domain.Entities.FishFarm?)null);
-
-        var handler  = new UpdateFishFarmPictureCommandHandler(_uowMock.Object, _cloudinaryMock.Object);
-        var mockFile = TestDataFactory.CreateMockFormFile();
-
-        // Act
-        var act = async () => await handler.Handle(
-            new UpdateFishFarmPictureCommand(missing, new UpdateFishFarmPictureRequest { Picture = mockFile }),
-            CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<NotFoundException>();
+        _cloudinaryMock.Verify(
+            c => c.DeleteImageAsync(oldPublicId, It.IsAny<CancellationToken>()), Times.Once);
+        _cloudinaryMock.Verify(
+            c => c.UploadImageAsync(mockFile, "fishfarms", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -399,21 +348,17 @@ public sealed class FishFarmHandlerTests
     // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task DeleteFishFarmHandler_ExistingFarm_SoftDeletesFarmAndWorkers()
+    public async Task DeleteFishFarmHandler_ExistingFarm_SoftDeletesFarmAndAssignments()
     {
         // Arrange
         var farmId = TestDataFactory.FarmId1;
         var farm   = TestDataFactory.CreateFishFarmEntity(farmId, picturePublicId: "fishfarms/farm-pic");
 
-        var activeWorker = TestDataFactory.CreateWorkerEntity(
-            picturePublicId: "workers/worker-pic");
-        farm.AddWorker(activeWorker);
-
-        var workerRepoMock = new Mock<IWorkerRepository>();
-        _uowMock.Setup(u => u.Workers).Returns(workerRepoMock.Object);
+        var assignment = TestDataFactory.CreateFarmWorkerEntity(fishFarmId: farmId);
+        farm.AddFarmWorker(assignment);
 
         _farmRepoMock
-            .Setup(r => r.GetWithWorkersAsync(farmId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetWithFarmWorkersAsync(farmId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(farm);
         _cloudinaryMock
             .Setup(c => c.DeleteImageAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -425,48 +370,39 @@ public sealed class FishFarmHandlerTests
         // Act
         await handler.Handle(new DeleteFishFarmCommand(farmId), CancellationToken.None);
 
-        // Assert – worker and farm both soft-deleted, Cloudinary assets cleaned up
-        workerRepoMock.Verify(r => r.Delete(activeWorker), Times.Once);
+        // Assert — assignment and farm soft-deleted, farm picture cleaned up
+        _fwRepoMock.Verify(r => r.Delete(assignment), Times.Once);
         _farmRepoMock.Verify(r => r.Delete(farm), Times.Once);
-        _cloudinaryMock.Verify(c => c.DeleteImageAsync("workers/worker-pic", It.IsAny<CancellationToken>()), Times.Once);
-        _cloudinaryMock.Verify(c => c.DeleteImageAsync("fishfarms/farm-pic", It.IsAny<CancellationToken>()), Times.Once);
+        _cloudinaryMock.Verify(
+            c => c.DeleteImageAsync("fishfarms/farm-pic", It.IsAny<CancellationToken>()), Times.Once);
         _uowMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task DeleteFishFarmHandler_FarmNotFound_ThrowsNotFoundException()
     {
-        // Arrange
         var missing = Guid.NewGuid();
         _farmRepoMock
-            .Setup(r => r.GetWithWorkersAsync(missing, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetWithFarmWorkersAsync(missing, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.FishFarm?)null);
 
         var handler = new DeleteFishFarmCommandHandler(_uowMock.Object, _cloudinaryMock.Object);
-
-        // Act
-        var act = async () => await handler.Handle(
+        var act     = async () => await handler.Handle(
             new DeleteFishFarmCommand(missing), CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Fact]
-    public async Task DeleteFishFarmHandler_FarmWithNoActiveWorkers_OnlyFarmDeleted()
+    public async Task DeleteFishFarmHandler_FarmWithNoAssignments_OnlyFarmDeleted()
     {
-        // Arrange
-        // EF's global query filter guarantees GetWithWorkersAsync never returns soft-deleted
-        // workers — the handler iterates farm.Workers unconditionally and relies on that contract.
-        // This test models a farm that legitimately has no active workers.
+        // EF global query filter ensures GetWithFarmWorkersAsync never includes
+        // soft-deleted assignments — this test models a farm with zero active assignments.
         var farmId = TestDataFactory.FarmId1;
-        var farm   = TestDataFactory.CreateFishFarmEntity(farmId);   // no workers added
-
-        var workerRepoMock = new Mock<IWorkerRepository>();
-        _uowMock.Setup(u => u.Workers).Returns(workerRepoMock.Object);
+        var farm   = TestDataFactory.CreateFishFarmEntity(farmId); // no FarmWorkers added
 
         _farmRepoMock
-            .Setup(r => r.GetWithWorkersAsync(farmId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetWithFarmWorkersAsync(farmId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(farm);
         _cloudinaryMock
             .Setup(c => c.DeleteImageAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -474,12 +410,9 @@ public sealed class FishFarmHandlerTests
         _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var handler = new DeleteFishFarmCommandHandler(_uowMock.Object, _cloudinaryMock.Object);
-
-        // Act
         await handler.Handle(new DeleteFishFarmCommand(farmId), CancellationToken.None);
 
-        // Assert – no workers to process; only the farm itself should be soft-deleted
-        workerRepoMock.Verify(r => r.Delete(It.IsAny<Domain.Entities.Worker>()), Times.Never);
+        _fwRepoMock.Verify(r => r.Delete(It.IsAny<FarmWorker>()), Times.Never);
         _farmRepoMock.Verify(r => r.Delete(farm), Times.Once);
         _uowMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }

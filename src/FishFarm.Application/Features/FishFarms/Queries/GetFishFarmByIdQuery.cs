@@ -1,6 +1,6 @@
 using FishFarm.Application.Common.Exceptions;
+using FishFarm.Application.Features.FarmWorkers.DTOs;
 using FishFarm.Application.Features.FishFarms.DTOs;
-using FishFarm.Application.Features.Workers.DTOs;
 using FishFarm.Domain.Interfaces;
 using MediatR;
 
@@ -12,14 +12,13 @@ public sealed class GetFishFarmByIdQueryHandler
     : IRequestHandler<GetFishFarmByIdQuery, FishFarmDto>
 {
     private readonly IUnitOfWork _uow;
-
     public GetFishFarmByIdQueryHandler(IUnitOfWork uow) => _uow = uow;
 
     public async Task<FishFarmDto> Handle(
         GetFishFarmByIdQuery request,
         CancellationToken cancellationToken)
     {
-        var farm = await _uow.FishFarms.GetWithWorkersAsync(request.Id, cancellationToken)
+        var farm = await _uow.FishFarms.GetWithFarmWorkersAsync(request.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.FishFarm), request.Id);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -36,21 +35,23 @@ public sealed class GetFishFarmByIdQueryHandler
             PictureUrl    = farm.PictureUrl,
             CreatedAt     = farm.CreatedAt,
             UpdatedAt     = farm.UpdatedAt,
-            Workers       = farm.Workers
-                .Select(w => new WorkerDto
+            // Global query filter on FarmWorker already excludes soft-deleted assignments.
+            Workers       = farm.FarmWorkers
+                .Select(fw => new FarmWorkerDto
                 {
-                    Id             = w.Id,
-                    WorkerCode     = $"WK-{w.WorkerNumber:D5}",
-                    FishFarmId     = w.FishFarmId,
-                    Name           = w.Name,
-                    Age            = w.Age,
-                    Email          = w.Email,
-                    Position       = w.Position.ToString(),
-                    CertifiedUntil = w.CertifiedUntil,
-                    IsExpired      = w.CertifiedUntil < today,
-                    PictureUrl     = w.PictureUrl,
-                    CreatedAt      = w.CreatedAt,
-                    UpdatedAt      = w.UpdatedAt
+                    Id             = fw.Id,
+                    FishFarmId     = fw.FishFarmId,
+                    PersonId       = fw.PersonId,
+                    PersonCode     = $"P-{fw.Person.PersonNumber:D5}",
+                    PersonName     = fw.Person.Name,
+                    PersonEmail    = fw.Person.Email,
+                    PersonAge      = fw.Person.Age,
+                    CertifiedUntil = fw.Person.CertifiedUntil,
+                    IsExpired      = fw.Person.CertifiedUntil < today,
+                    PictureUrl     = fw.Person.PictureUrl,
+                    Position       = fw.Position.ToString(),
+                    CreatedAt      = fw.CreatedAt,
+                    UpdatedAt      = fw.UpdatedAt
                 })
                 .ToList()
         };

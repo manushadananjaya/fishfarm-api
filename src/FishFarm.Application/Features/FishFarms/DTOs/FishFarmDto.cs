@@ -1,4 +1,4 @@
-using FishFarm.Application.Features.Workers.DTOs;
+using FishFarm.Application.Features.FarmWorkers.DTOs;
 
 namespace FishFarm.Application.Features.FishFarms.DTOs;
 
@@ -15,7 +15,8 @@ public sealed class FishFarmDto
     public string? PictureUrl { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
-    public IReadOnlyList<WorkerDto> Workers { get; init; } = [];
+    /// <summary>Active worker assignments at this farm, each with full person details.</summary>
+    public IReadOnlyList<FarmWorkerDto> Workers { get; init; } = [];
 }
 
 public sealed class FishFarmSummaryDto

@@ -10,15 +10,11 @@ namespace FishFarm.Application.Features.FishFarms.Queries;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Returns lightweight GPS markers for all active farms.
+/// Returns full farm details (GPS, properties, active workers) for all active farms.
 /// Optionally constrained to a geographic bounding box.
+/// The response is designed so the frontend can render both a map marker AND a
+/// farm detail panel without a second round-trip.
 /// </summary>
-/// <remarks>
-/// Architecture note: This project uses MediatR for all application logic.
-/// The handler below IS the "application service" — introducing a separate
-/// IFishFarmService interface here would duplicate the abstraction and break
-/// the consistency of the existing CQRS pattern.
-/// </remarks>
 public sealed record GetFishFarmsMapQuery(
     decimal? North = null,
     decimal? South = null,
@@ -41,26 +37,28 @@ public sealed class GetFishFarmsMapQueryHandler
         GetFishFarmsMapQuery request,
         CancellationToken cancellationToken)
     {
-        var points = await _uow.FishFarms.GetMapAsync(
+        var farms = await _uow.FishFarms.GetMapAsync(
             request.North,
             request.South,
             request.East,
             request.West,
             cancellationToken);
 
-        // Trivial one-to-one mapping: FishFarmMapPoint (Domain) → FishFarmMapDto (Application).
-        // The separation exists to honour the dependency rule — Domain cannot reference
-        // Application types, so the repository contract uses FishFarmMapPoint.
-        return points
-            .Select(p => new FishFarmMapDto
-            {
-                Id           = p.Id,
-                FarmCode     = p.FarmCode,
-                Name         = p.Name,
-                GpsLatitude  = p.GpsLatitude,
-                GpsLongitude = p.GpsLongitude
-            })
-            .ToList();
+        return farms.Select(farm => new FishFarmMapDto
+        {
+            Id            = farm.Id,
+            FarmCode      = $"FF-{farm.FarmNumber:D5}",
+            Name          = farm.Name,
+            GpsLatitude   = farm.GpsLatitude,
+            GpsLongitude  = farm.GpsLongitude,
+            NumberOfCages = farm.NumberOfCages,
+            HasBarge      = farm.HasBarge,
+            PictureUrl    = farm.PictureUrl,
+            CreatedAt     = farm.CreatedAt,
+            UpdatedAt     = farm.UpdatedAt,
+            // Global query filter on FarmWorker means only active assignments are counted.
+            WorkerCount   = farm.FarmWorkers.Count
+        }).ToList();
     }
 }
 

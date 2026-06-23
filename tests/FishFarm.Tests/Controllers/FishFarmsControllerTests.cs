@@ -41,7 +41,7 @@ public sealed class FishFarmsControllerTests
             .ReturnsAsync(expected);
 
         // Act
-        var actionResult = await _sut.GetAll(1, 10, CancellationToken.None);
+        var actionResult = await _sut.GetAll(1, 10, cancellationToken: CancellationToken.None);
 
         // Assert
         var ok = actionResult.Should().BeOfType<OkObjectResult>().Subject;
@@ -64,7 +64,7 @@ public sealed class FishFarmsControllerTests
             .ReturnsAsync(expected);
 
         // Act
-        var actionResult = await _sut.GetAll(1, 999, CancellationToken.None);
+        var actionResult = await _sut.GetAll(1, 999, cancellationToken: CancellationToken.None);
 
         // Assert
         actionResult.Should().BeOfType<OkObjectResult>();
@@ -87,7 +87,7 @@ public sealed class FishFarmsControllerTests
             .ReturnsAsync(expected);
 
         // Act
-        var result = await _sut.GetAll(3, 5, CancellationToken.None);
+        var result = await _sut.GetAll(3, 5, cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeOfType<OkObjectResult>();
