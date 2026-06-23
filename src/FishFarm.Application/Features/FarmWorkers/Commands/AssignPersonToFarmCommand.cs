@@ -47,6 +47,16 @@ public sealed class AssignPersonToFarmCommandHandler
             });
         }
 
+        // Guard: person must be certified
+        if (person.CertifiedUntil < DateOnly.FromDateTime(DateTime.UtcNow))
+        {
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(person.CertifiedUntil)] =
+                    ["This person's maritime certification has expired and cannot be assigned to a farm."]
+            });
+        }
+
         var farmWorker = new FarmWorker
         {
             FishFarmId = command.FishFarmId,

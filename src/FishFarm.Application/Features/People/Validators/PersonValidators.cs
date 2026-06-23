@@ -56,9 +56,6 @@ public sealed class UpdatePersonCommandValidator : AbstractValidator<UpdatePerso
         RuleFor(x => x.Request.Age)
             .InclusiveBetween(18, 80).WithMessage("Age must be between 18 and 80.");
 
-        RuleFor(x => x.Request.CertifiedUntil)
-            .GreaterThan(_ => DateOnly.FromDateTime(DateTime.UtcNow))
-            .WithMessage("CertifiedUntil must be a future date.");
     }
 }
 

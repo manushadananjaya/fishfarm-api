@@ -8,28 +8,27 @@ public sealed class FishFarmRepository
 {
     public FishFarmRepository(AppDbContext context) : base(context) { }
 
-    public async Task<IReadOnlyList<Domain.Entities.FishFarm>> GetMapAsync(
+    public async Task<IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)>> GetMapAsync(
         decimal? north = null,
         decimal? south = null,
         decimal? east  = null,
         decimal? west  = null,
         CancellationToken cancellationToken = default)
     {
-        // Explicit IQueryable<> type lets us reassign after Where() without a cast conflict.
-        // Include FarmWorkers only — Person detail is not needed for a worker count.
-        IQueryable<Domain.Entities.FishFarm> query = DbSet
-            .AsNoTracking()
-            .Include(f => f.FarmWorkers);
+        // WorkerCount is a SQL COUNT subquery — FarmWorkers rows are never loaded into memory.
+        IQueryable<Domain.Entities.FishFarm> query = DbSet.AsNoTracking();
 
-        // Apply bounding-box filters in SQL — the full table is never loaded into memory.
         if (north.HasValue) query = query.Where(f => f.GpsLatitude  <= north.Value);
         if (south.HasValue) query = query.Where(f => f.GpsLatitude  >= south.Value);
         if (east.HasValue)  query = query.Where(f => f.GpsLongitude <= east.Value);
         if (west.HasValue)  query = query.Where(f => f.GpsLongitude >= west.Value);
 
-        return await query
+        var raw = await query
             .OrderBy(f => f.Name)
+            .Select(f => new { Farm = f, WorkerCount = f.FarmWorkers.Count() })
             .ToListAsync(cancellationToken);
+
+        return raw.Select(x => (x.Farm, x.WorkerCount)).ToList();
     }
 
     public async Task<(IReadOnlyList<(Domain.Entities.FishFarm Farm, int WorkerCount)> Items, int TotalCount)>

@@ -37,27 +37,26 @@ public sealed class GetFishFarmsMapQueryHandler
         GetFishFarmsMapQuery request,
         CancellationToken cancellationToken)
     {
-        var farms = await _uow.FishFarms.GetMapAsync(
+        var farms = await _uow.FishFarms.GetMapAsync(   // returns IReadOnlyList<(Farm, WorkerCount)>
             request.North,
             request.South,
             request.East,
             request.West,
             cancellationToken);
 
-        return farms.Select(farm => new FishFarmMapDto
+        return farms.Select(t => new FishFarmMapDto
         {
-            Id            = farm.Id,
-            FarmCode      = $"FF-{farm.FarmNumber:D5}",
-            Name          = farm.Name,
-            GpsLatitude   = farm.GpsLatitude,
-            GpsLongitude  = farm.GpsLongitude,
-            NumberOfCages = farm.NumberOfCages,
-            HasBarge      = farm.HasBarge,
-            PictureUrl    = farm.PictureUrl,
-            CreatedAt     = farm.CreatedAt,
-            UpdatedAt     = farm.UpdatedAt,
-            // Global query filter on FarmWorker means only active assignments are counted.
-            WorkerCount   = farm.FarmWorkers.Count
+            Id            = t.Farm.Id,
+            FarmCode      = $"FF-{t.Farm.FarmNumber:D5}",
+            Name          = t.Farm.Name,
+            GpsLatitude   = t.Farm.GpsLatitude,
+            GpsLongitude  = t.Farm.GpsLongitude,
+            NumberOfCages = t.Farm.NumberOfCages,
+            HasBarge      = t.Farm.HasBarge,
+            PictureUrl    = t.Farm.PictureUrl,
+            CreatedAt     = t.Farm.CreatedAt,
+            UpdatedAt     = t.Farm.UpdatedAt,
+            WorkerCount   = t.WorkerCount   // already computed as a SQL COUNT subquery
         }).ToList();
     }
 }

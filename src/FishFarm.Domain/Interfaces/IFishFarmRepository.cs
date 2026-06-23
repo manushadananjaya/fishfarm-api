@@ -1,4 +1,3 @@
-using FishFarm.Domain.Common;
 using FishFarmEntity = FishFarm.Domain.Entities.FishFarm;
 
 namespace FishFarm.Domain.Interfaces;
@@ -9,11 +8,11 @@ namespace FishFarm.Domain.Interfaces;
 public interface IFishFarmRepository : IRepository<FishFarmEntity>
 {
     /// <summary>
-    /// Returns full farm entities (with FarmWorkers + Person eagerly loaded) for map display.
-    /// The Application layer projects these into <c>FishFarmMapDto</c>.
+    /// Returns farm entities with a pre-computed active <c>WorkerCount</c> for map display.
+    /// WorkerCount is projected as a SQL COUNT subquery — FarmWorkers are never loaded into memory.
     /// Optionally filtered to a geographic bounding box.
     /// </summary>
-    Task<IReadOnlyList<FishFarmEntity>> GetMapAsync(
+    Task<IReadOnlyList<(FishFarmEntity Farm, int WorkerCount)>> GetMapAsync(
         decimal? north = null,
         decimal? south = null,
         decimal? east  = null,
