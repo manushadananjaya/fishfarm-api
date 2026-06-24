@@ -28,11 +28,21 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         httpContext.Response.StatusCode  = statusCode;
         httpContext.Response.ContentType = "application/problem+json";
 
+        
+        string detail = exception.Message;
+        if (errors is not null && errors.Count > 0)
+        {
+            var firstEntry = errors.First();
+            var fieldName  = firstEntry.Key;
+            var firstMsg   = firstEntry.Value.FirstOrDefault() ?? exception.Message;
+            detail = $"{fieldName}: {firstMsg}";
+        }
+
         var problem = new ProblemDetails
         {
-            Status = statusCode,
-            Title  = title,
-            Detail = exception.Message,
+            Status   = statusCode,
+            Title    = title,
+            Detail   = detail,
             Instance = httpContext.Request.Path
         };
 
